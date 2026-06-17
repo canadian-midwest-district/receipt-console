@@ -1,0 +1,3422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mileage & Expense Claim</title>
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+    <style>
+        :root {
+            --primary: #0078d4;
+            --primary-dark: #106ebe;
+            --success: #107c10;
+            --danger: #d13438;
+            --bg: #f5f5f5;
+            --card: #ffffff;
+            --text: #323130;
+            --text-light: #605e5c;
+            --border: #edebe9;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header img {
+            height: 40px;
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        .user-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .user-bar .name { font-weight: 600; }
+        .user-bar .sign-out {
+            color: var(--text-light);
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field:last-child { margin-bottom: 0; }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+
+        .field input, .field select, .field textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            color: var(--text);
+            background: #fafafa;
+            -webkit-appearance: none;
+        }
+
+        .field input:focus, .field select:focus, .field textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0,120,212,0.15);
+            background: white;
+        }
+
+        .field textarea { resize: vertical; min-height: 60px; }
+        .field input[type="number"] { font-variant-numeric: tabular-nums; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+            width: 100%;
+            gap: 8px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-primary:disabled { background: #c8c6c4; cursor: not-allowed; }
+
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #0b6a0b; }
+        .btn-success:disabled { background: #c8c6c4; cursor: not-allowed; }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover { background: rgba(0,120,212,0.05); }
+
+        .btn-danger-outline {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 8px 12px;
+            font-size: 13px;
+            width: auto;
+        }
+
+        .travel-day {
+            background: #f9f9fb;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .travel-day .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .travel-day .day-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--primary);
+        }
+
+        .travel-day .remove-day {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            line-height: 1;
+        }
+
+        .day-rate-split {
+            font-size: 12px;
+            color: var(--text-light);
+            margin: 4px 0 8px;
+            min-height: 16px;
+        }
+
+        .day-total {
+            text-align: right;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--success);
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .expense-item {
+            background: #f9f9fb;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .expense-item .expense-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .expense-item .expense-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--primary);
+        }
+
+        .expense-item .remove-expense {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            line-height: 1;
+        }
+
+        .expense-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .expense-row .field { flex: 1; margin-bottom: 0; }
+        .expense-row .field.amount { flex: 0 0 110px; }
+
+        .receipt-label {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 10px;
+            display: block;
+        }
+
+        .receipt-input {
+            width: 100%;
+            padding: 8px;
+            font-size: 13px;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            background: white;
+            margin-top: 4px;
+            color: var(--text);
+        }
+
+        .totals-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .total-box {
+            background: #f0f6ff;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .total-box.grand {
+            grid-column: 1 / -1;
+            background: var(--success);
+            color: white;
+        }
+
+        .total-box .total-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+
+        .total-box .total-value {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .login-screen h2 {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+
+        .login-screen p {
+            color: var(--text-light);
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .login-screen .btn { max-width: 300px; }
+
+        .success-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .success-screen .checkmark {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .success-screen h2 { margin-bottom: 8px; }
+        .success-screen p {
+            color: var(--text-light);
+            margin-bottom: 24px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--danger);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 200;
+            display: none;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .payment-options {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 0;
+        }
+
+        .payment-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .payment-option:has(input:checked) {
+            border-color: var(--primary);
+            background: rgba(0,120,212,0.05);
+        }
+
+        .payment-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .payment-option span {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        #etransferEmailField {
+            display: none;
+            margin-top: 14px;
+        }
+
+        /* ========== VEHICLE SELECTION SCREEN ========== */
+        .vehicle-select-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .vehicle-select-screen h2 {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+
+        .vehicle-select-screen p {
+            color: var(--text-light);
+            margin-bottom: 28px;
+            font-size: 14px;
+        }
+
+        .vehicle-choice-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .btn-vehicle-choice {
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            text-align: left;
+            width: 100%;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            font-family: inherit;
+        }
+
+        .btn-vehicle-choice:hover {
+            border-color: var(--primary);
+            background: rgba(0,120,212,0.04);
+        }
+
+        .btn-vehicle-choice .choice-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .btn-vehicle-choice .choice-desc {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        /* ========== DISTRICT VEHICLE FORM ========== */
+        .district-form {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .field-readonly {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            background: #f3f3f3;
+            color: var(--text-light);
+        }
+
+        .odometer-hint {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 5px;
+        }
+
+        /* ========== CHURCH PICKER ========== */
+        .church-picker-wrapper { position: relative; }
+
+        .church-search-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            color: var(--text);
+            background: #fafafa;
+            -webkit-appearance: none;
+            margin-bottom: 6px;
+        }
+
+        .church-search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0,120,212,0.15);
+            background: white;
+        }
+
+        .church-list {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        .church-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--text);
+        }
+
+        .church-list-item:hover { background: #f0f6ff; }
+        .church-list-item.selected { background: rgba(0,120,212,0.08); }
+
+        .church-list-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .church-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .church-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #e3f0fd;
+            color: var(--primary);
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .church-tag .remove-tag {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        /* ========== CONTACT LOGGING PROMPT MODAL ========== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 28px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-content h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        .modal-content p {
+            font-size: 15px;
+            color: var(--text-light);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            flex-direction: row;
+        }
+
+        .modal-buttons .btn-modal {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .modal-buttons .btn-modal-yes {
+            background: var(--primary);
+            color: white;
+        }
+
+        .modal-buttons .btn-modal-yes:hover {
+            background: var(--primary-dark);
+        }
+
+        .modal-buttons .btn-modal-no {
+            background: #f0f0f0;
+            color: var(--text);
+        }
+
+        .modal-buttons .btn-modal-no:hover {
+            background: #e0e0e0;
+        }
+
+        @media (max-width: 380px) {
+            .expense-row { flex-direction: column; gap: 8px; }
+            .expense-row .field.amount { flex: 1; }
+            .totals-grid { grid-template-columns: 1fr; }
+            .total-box.grand { grid-column: 1; }
+            .payment-options { flex-direction: column; }
+        }
+
+        /* ========== RECEIPT CAPTURE (View A) ========== */
+        .receipt-step { display: none; }
+        .receipt-step.active { display: block; }
+
+        .receipt-capture-card {
+            text-align: center;
+            padding: 28px 20px;
+        }
+        .receipt-capture-card .capture-emoji { font-size: 52px; margin-bottom: 8px; }
+        .receipt-capture-card p { color: var(--text-light); font-size: 14px; margin-bottom: 20px; }
+
+        .receipt-file-input { display: none; }
+
+        .receipt-preview-img {
+            width: 100%;
+            max-height: 50vh;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #fafafa;
+        }
+
+        .receipt-reading {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-light);
+        }
+        .receipt-reading .spinner-dark {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(0,120,212,0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-bottom: 14px;
+        }
+
+        .review-banner {
+            background: #fff8e1;
+            border: 1px solid #f0c54a;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #5a4400;
+            margin-bottom: 16px;
+        }
+
+        .amount-row { display: flex; gap: 12px; }
+        .amount-row .field { flex: 1; margin-bottom: 16px; }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .category-tile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 48px;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #fafafa;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            text-align: left;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .category-tile:hover { border-color: var(--primary); }
+        .category-tile.selected {
+            border-color: var(--primary);
+            background: rgba(0,120,212,0.08);
+        }
+        .category-tile .tile-icon { font-size: 20px; flex-shrink: 0; }
+        .category-tile .tile-gl { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-light); flex-shrink: 0; }
+        .category-search {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 48px;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            font-family: inherit;
+            font-size: 15px;
+            color: var(--text);
+        }
+        .category-search:focus { outline: none; border-color: var(--primary); }
+
+        /* ===== View B: Reconciliation Dashboard (desktop) ===== */
+        .recon-dashboard { display:none; max-width:1400px; margin:0 auto; padding:16px 20px 48px; }
+        .recon-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+        .recon-topbar h2 { margin:0; color:var(--primary); font-size:20px; }
+        .recon-count { font-size:13px; color:var(--text-light); margin-right:10px; }
+        .recon-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+        .recon-tab { padding:8px 14px; border:1px solid var(--border); border-radius:999px; background:#fafafa; cursor:pointer; font-family:inherit; font-size:14px; font-weight:600; color:var(--text); }
+        .recon-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .recon-filters { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; }
+        .recon-filters .field { margin:0; }
+        .recon-filters label { display:block; font-size:12px; color:var(--text-light); margin-bottom:2px; }
+        .recon-filters input, .recon-filters select { padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:14px; color:var(--text); }
+        .recon-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:#fff; }
+        table.recon-table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+        table.recon-table th, table.recon-table td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; }
+        table.recon-table th { background:#f7f7f7; position:sticky; top:0; cursor:pointer; user-select:none; font-weight:700; z-index:1; }
+        table.recon-table th .arrow { color:var(--primary); font-size:11px; }
+        table.recon-table tbody tr:hover { background:#f0f7fd; }
+        table.recon-table td.num, table.recon-table th.num { text-align:right; }
+        .recon-empty { padding:24px; text-align:center; color:var(--text-light); }
+        .status-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; text-transform:capitalize; }
+        .status-submitted { background:#e7f1fb; color:#1F4E78; }
+        .status-reconciled { background:#e7f6ec; color:#107c10; }
+        .status-approved { background:#eef7e7; color:#5a7c10; }
+        .status-exported { background:#eeeeee; color:#555; }
+        .status-returned { background:#fde7e7; color:#a11111; }
+        .flag-cell { color:#a11111; font-weight:600; white-space:normal; }
+        .recon-prov-select { padding:2px 4px; border:1px solid var(--border); border-radius:4px; font-family:inherit; font-size:12px; }
+        .btn-sm { padding:6px 12px; font-size:13px; }
+        table.recon-table th.chk, table.recon-table td.chk { width:34px; text-align:center; cursor:default; }
+        table.recon-table tbody tr.main-row { cursor:pointer; }
+        .recon-bulkbar { display:none; align-items:center; gap:12px; flex-wrap:wrap; background:#eef5fc; border:1px solid #cfe3f7; border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:14px; }
+        .recon-bulkbar select { padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:14px; }
+        .recon-bulkbar .sel-count { font-weight:700; color:var(--primary); }
+        tr.recon-detail > td { background:#fbfcfe; padding:16px; white-space:normal; }
+        .recon-detail-grid { display:flex; gap:20px; flex-wrap:wrap; }
+        .recon-detail-img { flex:0 0 320px; max-width:320px; }
+        .recon-img { width:100%; border:1px solid var(--border); border-radius:8px; }
+        .recon-noimg { color:var(--text-light); font-size:13px; padding:12px; border:1px dashed var(--border); border-radius:8px; }
+        .recon-form { flex:1 1 360px; display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; align-items:end; }
+        .recon-form .fld { display:flex; flex-direction:column; }
+        .recon-form .fld.full { grid-column:1 / -1; }
+        .recon-form label { font-size:12px; color:var(--text-light); margin-bottom:2px; }
+        .recon-form input, .recon-form select, .recon-form textarea { padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:14px; color:var(--text); }
+        .recon-form textarea { min-height:46px; resize:vertical; }
+        .recon-form-actions { grid-column:1 / -1; display:flex; gap:10px; margin-top:4px; }
+        .recon-actionsbar { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+        .rebate-card { background:#f3f9f3; border:1px solid #cfe8cf; border-radius:8px; padding:8px 14px; font-size:14px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+        .rebate-card .rebate-title { font-weight:700; color:#107c10; }
+        .recon-action-btns { display:flex; gap:10px; flex-wrap:wrap; }
+    </style>
+</head>
+<body>
+
+<!-- ========== CONFIGURATION ========== -->
+<script>
+    const CONFIG = {
+        // Azure AD App Registration
+        clientId: '374bf2ac-ae8b-4d77-8ed6-449ccc0b66ea',
+        tenantId: 'ba036f76-a076-48ce-99a9-a04156055259',
+
+        // SharePoint
+        siteHost: 'cmacmd.sharepoint.com',
+        sitePath: '/sites/CanadianMidwestDistrictofTheChristianandMissionaryAlliancein',
+        listName: 'Travel Expense Claims',
+        districtVehicleLogsList: 'District Vehicle Logs',
+        masterChurchList: 'Master Church List',
+
+        // Mileage rates
+        rate065: 0.65,
+        rate020: 0.20,
+        dailyHighRateLimit: 200,  // km/day at the higher rate before dropping to lower rate
+
+        // Receipt Processing System (DEXT replacement)
+        receiptClaimsList: 'Receipt Claims',
+        receiptBatchesList: 'Receipt Batches',
+        receiptCategoryList: 'Receipt Category Quick Picks',
+        // OCR endpoint (receipt-processor Vercel project, deployed 2026-06-14).
+        receiptOcrUrl: 'https://receipt-processor-eight.vercel.app/api/process-receipt',
+        // Entra security groups for receipt role routing (created 2026-06-16, spec §4).
+        receiptGroups: {
+            submitters: '8765a926-e6c4-4349-be0a-287ab0c137fa',
+            accountant: '70729fe4-bcdf-4e07-8ba1-9d7f229df6cd',
+            approver:   '97ec28f0-fc09-4660-98f5-942dd6831f0b',
+        },
+    };
+
+    const DISTRICT_VEHICLES = [
+        { nickname: 'White Lightning', details: '2024 Toyota Camry – SK 913 NFQ' },
+        { nickname: 'Silver Bullet',   details: '2019 Toyota Camry – SK 014 LPY' },
+        { nickname: 'Blue Steel',      details: '2026 Toyota Corolla Cross – SK 341 PGZ' },
+    ];
+
+    // Two-letter province codes the receipt system understands (drives the
+    // GST vs provincial-tax split and the Sage .IMP tax codes downstream).
+    const RECEIPT_PROVINCES = ['SK', 'MB', 'AB', 'BC', 'ON', 'QC', 'NB', 'NS', 'NL', 'PE'];
+
+    // Fallback quick-picks used ONLY when the `Receipt Category Quick Picks`
+    // SharePoint list can't be read (it's the source of truth, maintained by
+    // Emmanuel). These mirror the 6 active tiles seeded 2026-06-16 from the
+    // real CMD chart of accounts — keep them in sync if the list's active
+    // tiles change. GLCode is the Sage 50 account.
+    const DEFAULT_RECEIPT_CATEGORIES = [
+        { label: 'Travel',                   glCode: '5576', icon: '🚗' },
+        { label: 'Hospitality',              glCode: '5488', icon: '🍽️' },
+        { label: 'Office Supplies',          glCode: '5529', icon: '📦' },
+        { label: 'IT Equipment',             glCode: '5526', icon: '💻' },
+        { label: 'Licenses & Subscriptions', glCode: '5527', icon: '🔑' },
+        { label: 'Auto Repair',              glCode: '5025', icon: '🔧' },
+    ];
+</script>
+
+<div class="header" id="appHeader">
+    <img src="cmd-logo.png" alt="Canadian Midwest District">
+    <div>
+        <h1 id="appTitle">Mileage & Expense Claim</h1>
+        <div class="subtitle">Canadian Midwest District</div>
+    </div>
+</div>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-screen">
+    <h2 id="loginHeading">Submit a Claim</h2>
+
+    <div id="extNotice" style="background:#fff8e1; border:1px solid #f0c54a; border-radius:8px; padding:14px 16px; margin:8px 0 20px; text-align:left; max-width:340px;">
+        <strong style="display:block; margin-bottom:6px; color:#7a5a00;">Ordaining Council &amp; DLC members:</strong>
+        <span style="font-size:14px; color:#5a4400;">You do <strong>not</strong> have a CMD Microsoft account. Use the orange button below — do not click "Sign in with Microsoft".</span>
+    </div>
+
+    <button id="extSubmitBtn" class="btn btn-primary" onclick="startExternalSubmission()"
+            style="background:#e67e22; border-color:#e67e22;">
+        File a claim without signing in →
+    </button>
+
+    <p style="margin-top:28px; font-size:13px; color:var(--text-light);">CMD staff with a Microsoft 365 account:</p>
+    <button class="btn btn-outline" onclick="signIn()" style="max-width:300px;">Sign in with Microsoft</button>
+</div>
+
+<!-- Vehicle Selection Screen -->
+<div id="vehicleSelectScreen" style="display:none;" class="vehicle-select-screen">
+    <h2>Which vehicle are you using?</h2>
+    <p>Select the vehicle for this trip.</p>
+    <div class="vehicle-choice-buttons">
+        <button class="btn-vehicle-choice" onclick="choosePersonalVehicle()">
+            <div class="choice-title">Personal Vehicle</div>
+            <div class="choice-desc">Submit a mileage &amp; expense claim</div>
+        </button>
+        <button class="btn-vehicle-choice" onclick="chooseDistrictVehicle()">
+            <div class="choice-title">District Vehicle</div>
+            <div class="choice-desc">Log a trip in a district-owned vehicle</div>
+        </button>
+        <button class="btn-vehicle-choice" onclick="choosePersonalUnclaimed()">
+            <div class="choice-title">Personal Vehicle (No Claim)</div>
+            <div class="choice-desc">Log a trip for the record — no mileage claim</div>
+        </button>
+        <button id="submitReceiptTile" class="btn-vehicle-choice" onclick="chooseSubmitReceipt()">
+            <div class="choice-title">Submit a Receipt</div>
+            <div class="choice-desc">Snap a receipt — taxes are read automatically</div>
+        </button>
+        <button id="reconDashTile" class="btn-vehicle-choice" style="display:none;" onclick="openReconciliation()">
+            <div class="choice-title">Receipt Reconciliation</div>
+            <div class="choice-desc">Review, edit, batch and export submitted receipts</div>
+        </button>
+    </div>
+</div>
+
+<!-- User Bar -->
+<div id="userBar" class="user-bar" style="display:none;">
+    <span class="name" id="userName"></span>
+    <span class="sign-out" onclick="signOut()">Sign out</span>
+</div>
+
+<!-- Main Form -->
+<div id="mainForm" class="container" style="display:none;">
+
+    <!-- External Submitter (only visible in no-account mode) -->
+    <div class="card" id="externalSubmitterCard" style="display:none;">
+        <div class="card-title">Your Information</div>
+        <div style="font-size:13px; color:var(--text-light); margin-bottom:12px;">
+            Because you're submitting without signing in, we need your contact details so the approver can reach you.
+        </div>
+        <div class="field">
+            <label>Full Name</label>
+            <input type="text" id="externalName" placeholder="Jane Doe">
+        </div>
+        <div class="field">
+            <label>Email Address</label>
+            <input type="email" id="externalEmail" placeholder="you@example.com">
+        </div>
+    </div>
+
+    <!-- Claim Info -->
+    <div class="card">
+        <div class="card-title">Claim Details</div>
+        <div class="field">
+            <label>Claim Category</label>
+            <!--
+              Two inputs share the same id="claimCategory" semantically: the
+              <select> for authenticated staff (4 categories) and the
+              segmented-pill radios for the unauthenticated OC/DLC path
+              (only 2 valid categories). The radios drive the hidden select
+              so the submit handler can keep reading one canonical value.
+              The select is hidden and cleared in startExternalSubmission().
+            -->
+            <select id="claimCategory">
+                <option value="Employee Mileage">Employee Mileage</option>
+                <option value="DEXCOM">DEXCOM</option>
+                <option value="Licensing Committee">Licensing Committee</option>
+                <option value="Ordaining Council">Ordaining Council</option>
+            </select>
+            <div class="payment-options" id="claimCategoryToggle" style="display:none;">
+                <label class="payment-option">
+                    <input type="radio" name="claimCategoryRadio" value="Licensing Committee"
+                           onchange="syncClaimCategoryFromRadio(this)">
+                    <span>Licensing Committee</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="claimCategoryRadio" value="Ordaining Council"
+                           onchange="syncClaimCategoryFromRadio(this)">
+                    <span>Ordaining Council</span>
+                </label>
+            </div>
+        </div>
+        <div class="field">
+            <label>Purpose / Details</label>
+            <input type="text" id="purpose" placeholder="e.g., Church visit, committee meeting">
+        </div>
+        <div class="field">
+            <label>Date</label>
+            <input type="date" id="claimDate">
+        </div>
+    </div>
+
+    <!-- Travel Days -->
+    <div class="card">
+        <div class="card-title">Mileage Log</div>
+        <div id="travelDays"></div>
+        <button class="btn btn-outline" onclick="addDay()" style="margin-top: 8px;">+ Add Travel Day</button>
+    </div>
+
+    <!-- Additional Expenses -->
+    <div class="card">
+        <div class="card-title">Additional Expenses</div>
+        <div id="expenseItems"></div>
+        <button class="btn btn-outline" onclick="addExpense()" style="margin-top: 8px;">+ Add Expense</button>
+    </div>
+
+    <!-- Totals -->
+    <div class="card">
+        <div class="card-title">Totals</div>
+        <div class="totals-grid">
+            <div class="total-box">
+                <div class="total-label">Total Km</div>
+                <div class="total-value" id="totalKm">0</div>
+            </div>
+            <div class="total-box">
+                <div class="total-label">Mileage $</div>
+                <div class="total-value" id="totalMileage">$0.00</div>
+            </div>
+            <div class="total-box">
+                <div class="total-label">Expenses $</div>
+                <div class="total-value" id="totalExpensesDisplay">$0.00</div>
+            </div>
+            <div class="total-box grand">
+                <div class="total-label">Grand Total</div>
+                <div class="total-value" id="grandTotal">$0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card">
+        <div class="field">
+            <label>Notes (optional)</label>
+            <textarea id="notes" placeholder="Any additional details..."></textarea>
+        </div>
+    </div>
+
+    <!-- Payment Method -->
+    <div class="card">
+        <div class="card-title">Payment Method</div>
+        <div class="field">
+            <div class="payment-options">
+                <label class="payment-option">
+                    <input type="radio" name="paymentMethod" value="Cheque" id="payCheque" checked onchange="toggleEtransfer()">
+                    <span>Cheque</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="paymentMethod" value="E-Transfer" id="payEtransfer" onchange="toggleEtransfer()">
+                    <span>E-Transfer</span>
+                </label>
+            </div>
+            <div id="etransferEmailField" class="field">
+                <label>E-Transfer Email Address</label>
+                <input type="email" id="etransferEmail" placeholder="email@example.com">
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit -->
+    <button class="btn btn-success" id="submitBtn" onclick="submitClaim()">
+        Submit Claim
+    </button>
+</div>
+
+<!-- District Vehicle Form -->
+<div id="districtForm" class="district-form" style="display:none;">
+
+    <div class="card">
+        <div class="card-title" id="distFormTitle">District Vehicle Trip Log</div>
+
+        <div class="field" id="distVehicleField">
+            <label>Vehicle</label>
+            <select id="distVehicle" onchange="onDistrictVehicleChange()">
+                <option value="">— Select a vehicle —</option>
+            </select>
+        </div>
+
+        <div class="field" id="distPersonalLabel" style="display:none;">
+            <label>Vehicle</label>
+            <div class="field-readonly">Personal Vehicle (No Claim)</div>
+        </div>
+
+        <div class="field">
+            <label>Driver</label>
+            <div class="field-readonly" id="distDriver"></div>
+        </div>
+
+        <div class="field">
+            <label>Date</label>
+            <input type="date" id="distDate">
+        </div>
+
+        <div id="distOdometerCard">
+            <div class="field">
+                <label>Odometer Reading (end of trip, km)</label>
+                <input type="number" id="distOdometer" inputmode="decimal"
+                       min="0" step="1" placeholder="e.g. 45230"
+                       oninput="updateKmDriven()">
+                <div class="odometer-hint" id="distOdometerHint">Select a vehicle to see the previous reading.</div>
+            </div>
+
+            <div class="field" style="margin-bottom:0;">
+                <label>Km Driven (calculated)</label>
+                <div class="field-readonly" id="distKmDriven">—</div>
+            </div>
+        </div>
+
+        <div id="distManualKmCard" style="display:none;">
+            <div class="field" style="margin-bottom:0;">
+                <label>Km Driven (optional)</label>
+                <input type="number" id="distManualKm" inputmode="decimal"
+                       min="0" step="1" placeholder="e.g. 350">
+                <div class="odometer-hint">Enter approximate km if known — this is optional.</div>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      Trip Type selector — only meaningful on the District Vehicle path
+      (not on Personal Vehicle Unclaimed, where personal use is implicit).
+      initDistrictForm() hides this card when isPersonalUnclaimed is true.
+      Personal Use is the rare case: staff borrows a district car with
+      DS approval for non-district reasons. The selection drives a tag
+      that gets prefixed to Purpose + appended to Title on submit.
+    -->
+    <div class="card" id="distTripTypeCard">
+        <div class="card-title">Trip Type</div>
+        <div class="payment-options" style="margin-top:0;">
+            <label class="payment-option">
+                <input type="radio" name="distTripType" value="District Business" checked
+                       onchange="onDistTripTypeChange()">
+                <span>District Business</span>
+            </label>
+            <label class="payment-option">
+                <input type="radio" name="distTripType" value="Personal Use"
+                       onchange="onDistTripTypeChange()">
+                <span>Personal Use</span>
+            </label>
+        </div>
+        <div id="distPersonalUseHint" style="display:none; margin-top:10px; padding:10px 12px; background:#fff8e1; border:1px solid #f0c54a; border-radius:6px; font-size:13px; color:#5a4400;">
+            Personal use of a district vehicle requires the District Superintendent's prior approval. This trip will be logged separately and flagged for review.
+        </div>
+    </div>
+
+    <div class="card" id="distChurchesCard">
+        <div class="card-title">Churches Visited</div>
+        <div class="church-picker-wrapper">
+            <input type="text" class="church-search-input" id="churchSearch"
+                   placeholder="Search churches…" oninput="filterChurches()">
+            <div class="church-list" id="churchList">
+                <div style="padding:12px; color:var(--text-light); font-size:14px;">Loading churches…</div>
+            </div>
+        </div>
+        <div class="church-tags" id="churchTags"></div>
+    </div>
+
+    <div class="card">
+        <div class="field" style="margin-bottom:0;">
+            <label>Purpose / Notes</label>
+            <textarea id="distPurpose" placeholder="Describe the purpose of this trip…"></textarea>
+        </div>
+    </div>
+
+    <button class="btn btn-success" id="distSubmitBtn" onclick="submitDistrictLog()">
+        Submit Trip Log
+    </button>
+
+    <div style="height: 24px;"></div>
+</div>
+
+<!-- Receipt Capture (View A) -->
+<div id="receiptCaptureView" class="container" style="display:none;">
+
+    <!-- Step 1: Capture -->
+    <div id="receiptStepCapture" class="receipt-step active">
+        <div class="card receipt-capture-card">
+            <div class="capture-emoji">🧾</div>
+            <div class="card-title" style="margin-bottom:6px;">Submit a Receipt</div>
+            <p>Take a clear photo of the whole receipt. The vendor, date, and tax
+               are read automatically — you just confirm.</p>
+            <label class="btn btn-primary" for="receiptPhoto">📷 Take Photo</label>
+            <input type="file" id="receiptPhoto" class="receipt-file-input"
+                   accept="image/*" capture="environment" onchange="onReceiptPhotoChosen(this)">
+            <button class="btn btn-outline" style="margin-top:12px;" onclick="cancelReceiptCapture()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Step 2: Preview -->
+    <div id="receiptStepPreview" class="receipt-step">
+        <div class="card">
+            <div class="card-title">Looks good?</div>
+            <img id="receiptPreviewImg" class="receipt-preview-img" alt="Receipt preview">
+            <div style="display:flex; gap:12px; margin-top:16px;">
+                <button class="btn btn-outline" onclick="retakeReceipt()">Retake</button>
+                <button class="btn btn-primary" onclick="continueReceipt()">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Reading (OCR in flight) -->
+    <div id="receiptStepReading" class="receipt-step">
+        <div class="card receipt-reading">
+            <div class="spinner-dark"></div>
+            <div>Reading receipt…</div>
+        </div>
+    </div>
+
+    <!-- Step 4: Verify & submit -->
+    <div id="receiptStepVerify" class="receipt-step">
+        <div class="card">
+            <div class="card-title">Confirm the details</div>
+            <div id="receiptReviewBanner" class="review-banner" style="display:none;"></div>
+
+            <div class="field">
+                <label>Vendor</label>
+                <input type="text" id="rcVendor" placeholder="Merchant name">
+            </div>
+            <div class="field">
+                <label>Date</label>
+                <input type="date" id="rcDate">
+            </div>
+            <div class="field">
+                <label>Province (where purchased)</label>
+                <select id="rcProvince"></select>
+            </div>
+
+            <div class="amount-row">
+                <div class="field">
+                    <label>Subtotal ($)</label>
+                    <input type="number" id="rcSubtotal" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="field">
+                    <label>GST ($)</label>
+                    <input type="number" id="rcGst" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+            <div class="amount-row">
+                <div class="field">
+                    <label>Provincial tax ($)</label>
+                    <input type="number" id="rcProvincialTax" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="field">
+                    <label>Tip ($)</label>
+                    <input type="number" id="rcTip" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+            <div class="amount-row">
+                <div class="field">
+                    <label>Total paid ($)</label>
+                    <input type="number" id="rcTotal" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Category</div>
+            <div class="category-grid" id="receiptCategoryGrid">
+                <div style="grid-column:1/-1; color:var(--text-light); font-size:14px;">Loading categories…</div>
+            </div>
+            <!-- "Other…" searchable picker for the non-tile (search-only) GL codes -->
+            <div id="receiptOtherPicker" style="display:none; margin-top:10px;">
+                <input type="text" id="receiptOtherSearch" class="category-search"
+                       placeholder="Search all categories or GL code…"
+                       oninput="renderReceiptOtherResults()" autocomplete="off">
+                <div id="receiptOtherResults" class="category-grid" style="margin-top:10px;"></div>
+            </div>
+            <div id="receiptSelectedChip" style="display:none; margin-top:12px; font-size:14px; color:var(--text);"></div>
+        </div>
+
+        <div class="card">
+            <div class="field" style="margin-bottom:0;">
+                <label>Note (optional)</label>
+                <textarea id="rcDescription" placeholder="What was this for?"></textarea>
+            </div>
+        </div>
+
+        <button class="btn btn-success" id="rcSubmitBtn" onclick="submitReceipt()">Submit Receipt</button>
+        <button class="btn btn-outline" style="margin-top:12px; margin-bottom:24px;" onclick="cancelReceiptCapture()">Cancel</button>
+    </div>
+</div>
+
+<!-- Success Screen -->
+<div id="successScreen" class="success-screen">
+    <div class="checkmark">&#10003;</div>
+    <h2 id="successHeading">Claim Submitted</h2>
+    <p id="successMessage">Your claim has been submitted and sent for approval. You'll be notified once it's reviewed.</p>
+    <span id="successFlowType" style="display:none;"></span>
+    <button class="btn btn-primary" id="successBackBtn" onclick="handleSuccessBack()">Submit Another</button>
+</div>
+
+<!-- ===== View B: Emmanuel's Reconciliation Dashboard ===== -->
+<div id="reconciliationDashboard" class="recon-dashboard">
+    <div class="recon-topbar">
+        <h2>Receipt Reconciliation</h2>
+        <div>
+            <span class="recon-count" id="reconCount"></span>
+            <button class="btn btn-outline btn-sm" onclick="loadReconciliation()">&#8635; Refresh</button>
+            <span class="sign-out" onclick="signOut()" style="margin-left:12px;">Sign out</span>
+        </div>
+    </div>
+    <div class="recon-tabs" id="reconTabs">
+        <button class="recon-tab active" data-status="all" onclick="setReconTab('all')">All</button>
+        <button class="recon-tab" data-status="submitted" onclick="setReconTab('submitted')">Submitted</button>
+        <button class="recon-tab" data-status="reconciled" onclick="setReconTab('reconciled')">Reconciled</button>
+        <button class="recon-tab" data-status="flagged" onclick="setReconTab('flagged')">Flagged</button>
+    </div>
+    <div class="recon-filters">
+        <div class="field"><label>From</label><input type="date" id="reconFrom" onchange="renderReconciliation()"></div>
+        <div class="field"><label>To</label><input type="date" id="reconTo" onchange="renderReconciliation()"></div>
+        <div class="field"><label>Submitter</label><select id="reconSubmitter" onchange="renderReconciliation()"><option value="">All</option></select></div>
+        <div class="field"><label>Category</label><select id="reconCategory" onchange="renderReconciliation()"><option value="">All</option></select></div>
+        <div class="field"><button class="btn btn-outline btn-sm" onclick="clearReconFilters()">Clear filters</button></div>
+    </div>
+    <div class="recon-actionsbar">
+        <div class="rebate-card">
+            <span class="rebate-title">PSB GST rebate (current view)</span>
+            <span>Total GST: <b id="rebateGst">$0.00</b></span>
+            <span>50% rebate: <b id="rebateAmt">$0.00</b></span>
+            <button class="btn btn-outline btn-sm" onclick="exportRC4034()">Export RC4034 CSV</button>
+        </div>
+        <div class="recon-action-btns">
+            <button class="btn btn-primary btn-sm" onclick="openBatchModal()">Create Batch for Approval</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadImp()">Download Sage Import (.IMP)</button>
+        </div>
+    </div>
+    <div class="recon-bulkbar" id="reconBulkBar">
+        <span class="sel-count" id="reconSelCount">0 selected</span>
+        <label>Set category:
+            <select id="reconBulkCat"><option value="">— choose —</option></select>
+        </label>
+        <button class="btn btn-outline btn-sm" onclick="bulkApplyCategory()">Apply category</button>
+        <button class="btn btn-outline btn-sm" onclick="bulkMarkReconciled()">Mark reconciled</button>
+        <button class="btn btn-outline btn-sm" onclick="clearReconSelection()">Clear selection</button>
+    </div>
+    <div class="recon-table-wrap">
+        <table class="recon-table" id="reconTable">
+            <thead id="reconHead"></thead>
+            <tbody id="reconBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Console: not-authorized notice (expenses. host, non-accountant) -->
+<div id="consoleDenied" class="success-screen" style="display:none;">
+    <h2>Not authorized</h2>
+    <p>This is the receipt reconciliation console. Your account isn't set up for it. If you're submitting receipts, use the travel app instead.</p>
+    <button class="btn btn-outline" onclick="signOut()">Sign out</button>
+</div>
+
+<!-- Create Batch Modal (reconciliation dashboard) -->
+<div id="batchModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Create Batch for Approval</h3>
+        <p id="batchSummary"></p>
+        <div class="field" style="margin-bottom:12px;">
+            <label>Notes for the approver (optional)</label>
+            <textarea id="batchNotes" placeholder="Anything Bernie should know about this batch…"></textarea>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeBatchModal()">Cancel</button>
+            <button class="btn btn-primary" id="batchCreateBtn" onclick="createBatch()">Create batch</button>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Logging Prompt Modal -->
+<div id="contactLogModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Log a Church Contact?</h3>
+        <p>You've logged a trip. Would you like to record a church contact or engagement in the District Dashboard now?</p>
+        <div class="modal-buttons">
+            <button class="btn-modal btn-modal-yes" onclick="openContactLogging()">Yes, Log Contact</button>
+            <button class="btn-modal btn-modal-no" onclick="skipContactLogging()">Not Now</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+    // ========== MSAL AUTH ==========
+    const msalConfig = {
+        auth: {
+            clientId: CONFIG.clientId,
+            authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
+            redirectUri: window.location.origin + window.location.pathname,
+        },
+        cache: {
+            cacheLocation: 'localStorage',
+            storeAuthStateInCookie: true,
+        }
+    };
+
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+    const loginRequest = {
+        scopes: ['User.Read', 'Sites.ReadWrite.All']
+    };
+
+    let currentUser = null;
+    let accessToken = null;
+    let allChurches = [];
+    let selectedChurches = new Set();
+    let distPreviousOdometer = null;
+    let isExternalMode = false;
+
+    // Edge function endpoint for unauthenticated submissions
+    // (district-tracker Supabase project; project ref sgoxvyjbyqtvsfurkllf)
+    const EXTERNAL_SUBMIT_URL =
+        'https://sgoxvyjbyqtvsfurkllf.supabase.co/functions/v1/mileage-claim-external';
+
+    // Entry point for OC / DLC members without a CMD M365 account.
+    // Skips MSAL entirely and drops them straight into the Personal Vehicle
+    // claim form with a name/email capture card. Submit posts to the edge
+    // function above, which writes into the same SharePoint list authenticated
+    // users hit — flagged in Notes for identity verification on review.
+    // Mirrors the server-side allow-list in mileage-claim-external. The
+    // unauthenticated OC/DLC path can only submit under these two categories;
+    // staff categories (Employee Mileage, DEXCOM) route to a different
+    // approval chain and broke at least one approval when a council member
+    // picked Employee Mileage by mistake from the old dropdown.
+    function syncClaimCategoryFromRadio(radio) {
+        document.getElementById('claimCategory').value = radio.value;
+    }
+
+    function startExternalSubmission() {
+        isExternalMode = true;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('externalSubmitterCard').style.display = 'block';
+        document.getElementById('mainForm').style.display = 'block';
+        document.getElementById('claimDate').valueAsDate = new Date();
+
+        // Swap the 4-option dropdown for two prominent toggle pills, and
+        // force an explicit pick (no default) so the category choice is a
+        // deliberate action.
+        const sel = document.getElementById('claimCategory');
+        sel.style.display = 'none';
+        sel.value = '';
+        document.getElementById('claimCategoryToggle').style.display = 'flex';
+        document.querySelectorAll('input[name="claimCategoryRadio"]')
+            .forEach(r => { r.checked = false; });
+
+        if (document.querySelectorAll('.travel-day').length === 0) { addDay(); }
+    }
+
+    async function signIn() {
+        try {
+            const response = await msalInstance.loginPopup(loginRequest);
+            await handleAuth(response.account);
+        } catch (err) {
+            showToast('Sign-in failed. Please try again.');
+            console.error(err);
+        }
+    }
+
+    async function handleAuth(account) {
+        currentUser = account;
+        try {
+            const tokenResponse = await msalInstance.acquireTokenSilent({
+                scopes: loginRequest.scopes,
+                account: account
+            });
+            accessToken = tokenResponse.accessToken;
+        } catch (err) {
+            const tokenResponse = await msalInstance.acquireTokenPopup({
+                scopes: loginRequest.scopes,
+                account: account
+            });
+            accessToken = tokenResponse.accessToken;
+        }
+
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('userBar').style.display = 'flex';
+        document.getElementById('userName').textContent = currentUser.name || currentUser.username;
+        // Capture host shows the vehicle/receipt hub; console host goes straight to the dashboard (via routeReceiptViews).
+        if (APP_MODE === 'capture') document.getElementById('vehicleSelectScreen').style.display = 'flex';
+
+        // Receipt role detection (spec §4). Non-blocking and fails OPEN — if we
+        // can't read group membership we leave the receipt entry visible rather
+        // than lock a legitimate submitter out.
+        applyReceiptRoles();
+    }
+
+    // Host-based mode: the accountant console is served from expenses.canadianmidwest.ca
+    // (a separate GitHub Pages repo with the same index.html). travel.* and anything
+    // else (localhost/preview) run the capture app. This is an obscurity layer on top
+    // of the ReceiptAccountant group gate, not a replacement for it.
+    const APP_MODE = (location.hostname.split('.')[0] === 'expenses') ? 'console' : 'capture';
+
+    // In console mode, relabel the chrome and strip the capture-only login extras.
+    function applyConsoleChrome(){
+        if (APP_MODE !== 'console') return;
+        const t=document.getElementById('appTitle'); if(t) t.textContent='Receipt Reconciliation';
+        const lh=document.getElementById('loginHeading'); if(lh) lh.textContent='Reconciliation Console — Staff Sign In';
+        ['extNotice','extSubmitBtn'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    }
+
+    // Receipt roles, resolved from Entra security-group membership (spec §4).
+    // null = not yet determined / unreadable.
+    let receiptRoles = { submitter: null, accountant: null, approver: null };
+
+    async function applyReceiptRoles() {
+        try {
+            const r = await fetch(
+                'https://graph.microsoft.com/v1.0/me/memberOf?$select=id&$top=200',
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            if (!r.ok) throw new Error('memberOf HTTP ' + r.status);
+            const d = await r.json();
+            const ids = new Set((d.value || []).map(g => g.id));
+            const G = CONFIG.receiptGroups;
+            receiptRoles = {
+                submitter: ids.has(G.submitters),
+                accountant: ids.has(G.accountant),
+                approver: ids.has(G.approver),
+            };
+        } catch (err) {
+            console.warn('Receipt roles: membership unreadable, failing open —', err.message);
+            receiptRoles = { submitter: null, accountant: null, approver: null };
+        }
+        routeReceiptViews();
+    }
+
+    // Apply role-based view routing (spec §4). Today only the mobile capture
+    // (submitter) view exists in this app; Emmanuel's reconciliation and
+    // Bernie's approval dashboards are Phase 3/4 and live elsewhere. Until those
+    // ship, routing == gate the receipt-capture entry on submitter membership.
+    function routeReceiptViews() {
+        if (APP_MODE === 'console') {
+            // Accountant console host (expenses.): dashboard only, no capture flows.
+            // Fail OPEN — deny only when we positively know the user is NOT an accountant.
+            if (receiptRoles.accountant === false) { showConsoleDenied(); }
+            else { openReconciliation(); }
+            return;
+        }
+        // Capture host (travel.): capture/vehicle flows only — the dashboard lives on expenses.
+        const tile = document.getElementById('submitReceiptTile');
+        if (tile) tile.style.display = (receiptRoles.submitter === false) ? 'none' : '';
+        const dashTile = document.getElementById('reconDashTile');
+        if (dashTile) dashTile.style.display = 'none';
+    }
+
+    function showConsoleDenied(){
+        hideAllReceiptViews();
+        document.getElementById('consoleDenied').style.display = 'flex';
+    }
+
+    function signOut() {
+        msalInstance.logoutPopup();
+        currentUser = null;
+        accessToken = null;
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('userBar').style.display = 'none';
+        document.getElementById('mainForm').style.display = 'none';
+        document.getElementById('vehicleSelectScreen').style.display = 'none';
+        document.getElementById('districtForm').style.display = 'none';
+        document.getElementById('receiptCaptureView').style.display = 'none';
+        document.getElementById('successScreen').style.display = 'none';
+        document.getElementById('reconciliationDashboard').style.display = 'none';
+        document.getElementById('consoleDenied').style.display = 'none';
+        allChurches = [];
+        selectedChurches = new Set();
+        distPreviousOdometer = null;
+    }
+
+    // Check for existing session on load
+    async function checkExistingSession() {
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+            await handleAuth(accounts[0]);
+        }
+    }
+
+    // ========== VEHICLE ROUTING ==========
+    let isPersonalUnclaimed = false;
+
+    function choosePersonalVehicle() {
+        document.getElementById('vehicleSelectScreen').style.display = 'none';
+        document.getElementById('mainForm').style.display = 'block';
+        document.getElementById('claimDate').valueAsDate = new Date();
+        if (document.querySelectorAll('.travel-day').length === 0) { addDay(); }
+    }
+
+    async function chooseDistrictVehicle() {
+        isPersonalUnclaimed = false;
+        document.getElementById('vehicleSelectScreen').style.display = 'none';
+        document.getElementById('districtForm').style.display = 'block';
+        initDistrictForm();
+        await loadChurches();
+    }
+
+    async function choosePersonalUnclaimed() {
+        isPersonalUnclaimed = true;
+        document.getElementById('vehicleSelectScreen').style.display = 'none';
+        document.getElementById('districtForm').style.display = 'block';
+        initDistrictForm();
+        await loadChurches();
+    }
+
+    function handleSuccessBack() {
+        const flow = document.getElementById('successFlowType').textContent;
+        document.getElementById('successScreen').style.display = 'none';
+        if (flow === 'district') {
+            resetDistrictForm();
+            document.getElementById('vehicleSelectScreen').style.display = 'flex';
+        } else if (flow === 'receipt') {
+            resetReceiptCapture();
+            document.getElementById('receiptCaptureView').style.display = 'none';
+            document.getElementById('vehicleSelectScreen').style.display = 'flex';
+        } else {
+            resetForm();
+        }
+    }
+
+    // ========== TRAVEL DAYS ==========
+    let dayCount = 0;
+
+    function addDay() {
+        dayCount++;
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'travel-day';
+        dayDiv.id = `day-${dayCount}`;
+        dayDiv.innerHTML = `
+            <div class="day-header">
+                <span class="day-label">Day ${dayCount}</span>
+                <button class="remove-day" onclick="removeDay('day-${dayCount}')" title="Remove day">&times;</button>
+            </div>
+            <div class="field" style="margin-bottom:4px;">
+                <label>Total Km</label>
+                <input type="number" inputmode="decimal" min="0" step="0.1" value="0"
+                       onchange="recalc()" oninput="recalc()" placeholder="0">
+            </div>
+            <div class="day-rate-split"></div>
+            <div class="day-total">Day total: $0.00</div>
+        `;
+        document.getElementById('travelDays').appendChild(dayDiv);
+        recalc();
+    }
+
+    function removeDay(dayId) {
+        const day = document.getElementById(dayId);
+        if (day) {
+            day.remove();
+            renumberDays();
+            recalc();
+        }
+    }
+
+    function renumberDays() {
+        const days = document.querySelectorAll('.travel-day');
+        days.forEach((day, index) => {
+            day.querySelector('.day-label').textContent = `Day ${index + 1}`;
+        });
+        dayCount = days.length;
+    }
+
+    // ========== ADDITIONAL EXPENSES ==========
+    let expenseCount = 0;
+
+    function addExpense() {
+        expenseCount++;
+        const div = document.createElement('div');
+        div.className = 'expense-item';
+        div.id = `expense-${expenseCount}`;
+        div.innerHTML = `
+            <div class="expense-header">
+                <span class="expense-label">Expense ${expenseCount}</span>
+                <button class="remove-expense" onclick="removeExpense('expense-${expenseCount}')" title="Remove">&times;</button>
+            </div>
+            <div class="expense-row">
+                <div class="field">
+                    <label>Description</label>
+                    <input type="text" placeholder="e.g., Lunch, Parking" style="font-size:15px;">
+                </div>
+                <div class="field amount">
+                    <label>Amount ($)</label>
+                    <input type="number" class="expense-amount-input" inputmode="decimal"
+                           min="0" step="0.01" value="" placeholder="0.00"
+                           onchange="recalc()" oninput="recalc()">
+                </div>
+            </div>
+            <label class="receipt-label">Receipt (photo or PDF)</label>
+            <input type="file" class="receipt-input" accept="image/*,application/pdf">
+        `;
+        document.getElementById('expenseItems').appendChild(div);
+        recalc();
+    }
+
+    function removeExpense(id) {
+        const el = document.getElementById(id);
+        if (el) { el.remove(); recalc(); }
+    }
+
+    function recalc() {
+        const days = document.querySelectorAll('.travel-day');
+        let totalKm = 0;
+        let totalMileageDollars = 0;
+
+        days.forEach(day => {
+            const input = day.querySelector('input[type="number"]');
+            const km = parseFloat(input.value) || 0;
+            const km065 = Math.min(km, CONFIG.dailyHighRateLimit);
+            const km020 = Math.max(0, km - CONFIG.dailyHighRateLimit);
+            const dayTotal = (km065 * CONFIG.rate065) + (km020 * CONFIG.rate020);
+
+            // Show rate split breakdown under the input
+            const splitEl = day.querySelector('.day-rate-split');
+            if (km > 0 && km020 > 0) {
+                splitEl.textContent = `${km065} km @ $${CONFIG.rate065.toFixed(2)} + ${km020} km @ $${CONFIG.rate020.toFixed(2)}`;
+            } else if (km > 0) {
+                splitEl.textContent = `${km065} km @ $${CONFIG.rate065.toFixed(2)}`;
+            } else {
+                splitEl.textContent = '';
+            }
+
+            day.querySelector('.day-total').textContent = `Day total: $${dayTotal.toFixed(2)}`;
+            totalKm += km;
+            totalMileageDollars += dayTotal;
+        });
+
+        // Expenses total
+        let totalExpensesDollars = 0;
+        document.querySelectorAll('.expense-amount-input').forEach(input => {
+            totalExpensesDollars += parseFloat(input.value) || 0;
+        });
+
+        const grandTotal = totalMileageDollars + totalExpensesDollars;
+
+        document.getElementById('totalKm').textContent = totalKm.toFixed(1);
+        document.getElementById('totalMileage').textContent = `$${totalMileageDollars.toFixed(2)}`;
+        document.getElementById('totalExpensesDisplay').textContent = `$${totalExpensesDollars.toFixed(2)}`;
+        document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+    }
+
+    // ========== PAYMENT METHOD ==========
+    function toggleEtransfer() {
+        const isEtransfer = document.getElementById('payEtransfer').checked;
+        document.getElementById('etransferEmailField').style.display = isEtransfer ? 'block' : 'none';
+        document.getElementById('etransferEmail').required = isEtransfer;
+    }
+
+    // ========== SUBMIT PERSONAL CLAIM ==========
+    async function submitClaim() {
+        const claimCategory = document.getElementById('claimCategory').value;
+        const purpose = document.getElementById('purpose').value.trim();
+        const claimDate = document.getElementById('claimDate').value;
+        const notes = document.getElementById('notes').value.trim();
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+        const etransferEmail = document.getElementById('etransferEmail').value.trim();
+
+        if (!claimCategory) { showToast('Please select a claim category.'); return; }
+        if (!purpose) { showToast('Please enter the purpose / details.'); return; }
+        if (!claimDate) { showToast('Please select a date.'); return; }
+        if (paymentMethod === 'E-Transfer' && !etransferEmail) { showToast('Please enter your e-transfer email address.'); return; }
+
+        const days = document.querySelectorAll('.travel-day');
+        if (days.length === 0) { showToast('Please add at least one travel day.'); return; }
+
+        // Build mileage breakdown with auto-split at daily limit
+        let totalKm = 0;
+        let totalMileageDollars = 0;
+        const breakdownLines = [];
+
+        days.forEach((day, index) => {
+            const input = day.querySelector('input[type="number"]');
+            const km = parseFloat(input.value) || 0;
+            const km065 = Math.min(km, CONFIG.dailyHighRateLimit);
+            const km020 = Math.max(0, km - CONFIG.dailyHighRateLimit);
+            const dayTotal = (km065 * CONFIG.rate065) + (km020 * CONFIG.rate020);
+            totalKm += km;
+            totalMileageDollars += dayTotal;
+            let line = `Day ${index + 1}: ${km065} km @ $${CONFIG.rate065.toFixed(2)} = $${(km065 * CONFIG.rate065).toFixed(2)}`;
+            if (km020 > 0) line += ` | ${km020} km @ $${CONFIG.rate020.toFixed(2)} = $${(km020 * CONFIG.rate020).toFixed(2)}`;
+            line += ` | Day total: $${dayTotal.toFixed(2)}`;
+            breakdownLines.push(line);
+        });
+        breakdownLines.push(`TOTAL: ${totalKm.toFixed(1)} km | $${totalMileageDollars.toFixed(2)}`);
+        const mileageBreakdown = breakdownLines.join('\n');
+
+        if (totalKm === 0) { showToast('Please enter some kilometres.'); return; }
+
+        // Collect additional expenses
+        const expenseItems = document.querySelectorAll('.expense-item');
+        let totalExpenseDollars = 0;
+        const expenseData = [];
+        expenseItems.forEach(item => {
+            const desc = item.querySelector('input[type="text"]').value.trim();
+            const amount = parseFloat(item.querySelector('.expense-amount-input').value) || 0;
+            const fileInput = item.querySelector('input[type="file"]');
+            const file = fileInput.files[0] || null;
+            if (desc || amount > 0) {
+                expenseData.push({ desc, amount, file });
+                totalExpenseDollars += amount;
+            }
+        });
+
+        const grandTotal = totalMileageDollars + totalExpenseDollars;
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Submitting...';
+
+        // ── External (unauthenticated) submission path ──────────────────────
+        // OC / DLC members without a CMD M365 account post to the edge
+        // function, which writes to SharePoint via app-only Graph. Receipts
+        // are not supported on this path (no SharePoint drive write without
+        // a user token) — they're prompted to email receipts to the approver.
+        if (isExternalMode) {
+            const submitterName = document.getElementById('externalName').value.trim();
+            const submitterEmail = document.getElementById('externalEmail').value.trim();
+            if (!submitterName) { showToast('Please enter your name.'); btn.disabled = false; btn.innerHTML = 'Submit Claim'; return; }
+            if (!submitterEmail) { showToast('Please enter your email.'); btn.disabled = false; btn.innerHTML = 'Submit Claim'; return; }
+
+            const receiptsPresent = expenseData.some(e => e.file);
+            const expenseLinesExt = expenseData.map(e =>
+                `${e.desc || '(no description)'}: $${e.amount.toFixed(2)} | Receipt: ${e.file ? 'EMAIL TO APPROVER — ' + e.file.name : 'no receipt'}`
+            );
+            const expenseDetailsExt = expenseLinesExt.length > 0
+                ? expenseLinesExt.join('\n') + `\nTOTAL EXPENSES: $${totalExpenseDollars.toFixed(2)}`
+                : '';
+
+            try {
+                const res = await fetch(EXTERNAL_SUBMIT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        submitterName,
+                        submitterEmail,
+                        claimCategory,
+                        purpose,
+                        claimDate,
+                        mileageBreakdown,
+                        totalKm,
+                        totalMileageDollars,
+                        expenseDetails: expenseDetailsExt,
+                        totalExpenseDollars,
+                        grandTotal,
+                        notes,
+                        paymentMethod,
+                        etransferEmail,
+                    }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ error: res.statusText }));
+                    throw new Error(err.error || err.detail || 'Submission failed');
+                }
+                document.getElementById('successFlowType').textContent = 'personal';
+                document.getElementById('successHeading').textContent = 'Claim Submitted';
+                document.getElementById('successMessage').textContent = receiptsPresent
+                    ? `Your claim was submitted. Please email your receipt photos/PDFs to chris@canadianmidwest.ca with subject "Receipts for ${submitterName} ${claimDate}" — the approver needs them to finalize.`
+                    : "Your claim has been submitted and sent for approval. You'll be notified once it's reviewed.";
+                document.getElementById('successBackBtn').textContent = 'Submit Another Claim';
+                document.getElementById('mainForm').style.display = 'none';
+                document.getElementById('externalSubmitterCard').style.display = 'none';
+                document.getElementById('successScreen').style.display = 'flex';
+            } catch (err) {
+                showToast('Submission failed: ' + err.message);
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Submit Claim';
+            }
+            return;
+        }
+
+        try {
+            // Refresh token
+            const tokenResponse = await msalInstance.acquireTokenSilent({
+                scopes: loginRequest.scopes,
+                account: currentUser
+            });
+            accessToken = tokenResponse.accessToken;
+
+            // Get SharePoint site ID
+            const siteRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${CONFIG.siteHost}:${CONFIG.sitePath}`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
+            );
+            const site = await siteRes.json();
+
+            // Get list ID
+            const listRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${site.id}/lists?$filter=displayName eq '${CONFIG.listName}'`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
+            );
+            const lists = await listRes.json();
+            // Guard against Graph returning an error envelope ({ error: {...} })
+            // instead of { value: [...] }. This happens when the signed-in
+            // identity (e.g. a personal Microsoft account, an unconsented
+            // guest, or a member without Sites.ReadWrite.All on this site)
+            // can authenticate against the tenant but can't read the list.
+            // Without this guard, the next line crashes with the unhelpful
+            // "Cannot read properties of undefined (reading '0')".
+            if (!Array.isArray(lists.value) || lists.value.length === 0) {
+                throw new Error(
+                    "Your Microsoft account doesn't have access to the Travel Expense Claims list. " +
+                    "If you're an Ordaining Council or District Licensing Committee member, please sign out " +
+                    "and use the \"File a claim without signing in →\" link on the sign-in screen instead."
+                );
+            }
+            const listId = lists.value[0].id;
+
+            // Upload receipts to SharePoint document library, build expense details text
+            const safeEmployee = (currentUser.name || currentUser.username).replace(/[^a-zA-Z0-9 _-]/g, '');
+            const expenseLines = [];
+            for (const expense of expenseData) {
+                let receiptUrl = 'no receipt';
+                if (expense.file) {
+                    const filename = `${Date.now()}-${expense.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                    const uploadPath = `Travel Receipts/${claimDate}/${safeEmployee}/${filename}`;
+                    const uploadRes = await fetch(
+                        `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/root:/${uploadPath}:/content`,
+                        {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Content-Type': expense.file.type || 'application/octet-stream'
+                            },
+                            body: expense.file
+                        }
+                    );
+                    if (uploadRes.ok) {
+                        const uploaded = await uploadRes.json();
+                        // Generate a short sharing link instead of the raw file path
+                        try {
+                            const linkRes = await fetch(
+                                `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/items/${uploaded.id}/createLink`,
+                                {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${accessToken}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ type: 'view', scope: 'organization' })
+                                }
+                            );
+                            if (linkRes.ok) {
+                                const linkData = await linkRes.json();
+                                receiptUrl = linkData.link?.webUrl || uploaded.webUrl;
+                            } else {
+                                receiptUrl = uploaded.webUrl;
+                            }
+                        } catch {
+                            receiptUrl = uploaded.webUrl;
+                        }
+                    }
+                }
+                expenseLines.push(`${expense.desc || '(no description)'}: $${expense.amount.toFixed(2)} | Receipt: ${receiptUrl}`);
+            }
+            const expenseDetails = expenseLines.length > 0
+                ? expenseLines.join('\n') + `\nTOTAL EXPENSES: $${totalExpenseDollars.toFixed(2)}`
+                : '';
+
+            // Create list item
+            const item = {
+                fields: {
+                    Title: `${currentUser.name} - ${claimDate}`,
+                    EmployeeName: currentUser.name || currentUser.username,
+                    SubmissionDate: claimDate,
+                    ClaimCategory: claimCategory,
+                    CommitteePurpose: purpose,
+                    MileageBreakdown: mileageBreakdown,
+                    TotalMileage: totalKm,
+                    TotalExpenses: totalMileageDollars,
+                    ExpenseDetails: expenseDetails,
+                    ExpenseTotal: totalExpenseDollars,
+                    GrandTotal: grandTotal,
+                    Notes: notes || '',
+                    PaymentMethod: paymentMethod,
+                    ETransferEmail: paymentMethod === 'E-Transfer' ? etransferEmail : ''
+                }
+            };
+
+            const createRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${listId}/items`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(item)
+                }
+            );
+
+            if (!createRes.ok) {
+                const err = await createRes.json();
+                throw new Error(err.error?.message || 'Failed to submit');
+            }
+
+            // Show success
+            document.getElementById('successFlowType').textContent = 'personal';
+            document.getElementById('successHeading').textContent = 'Claim Submitted';
+            document.getElementById('successMessage').textContent = "Your claim has been submitted and sent for approval. You'll be notified once it's reviewed.";
+            document.getElementById('successBackBtn').textContent = 'Submit Another Claim';
+            document.getElementById('mainForm').style.display = 'none';
+            document.getElementById('successScreen').style.display = 'flex';
+
+        } catch (err) {
+            showToast('Submission failed: ' + err.message);
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Submit Claim';
+        }
+    }
+
+    // ========== DISTRICT VEHICLE FORM ==========
+    function initDistrictForm() {
+        const sel = document.getElementById('distVehicle');
+        const vehicleField = document.getElementById('distVehicleField');
+        const personalLabel = document.getElementById('distPersonalLabel');
+        const odometerCard = document.getElementById('distOdometerCard');
+        const manualKmCard = document.getElementById('distManualKmCard');
+        const formTitle = document.getElementById('distFormTitle');
+
+        if (isPersonalUnclaimed) {
+            // Hide vehicle dropdown, show label; hide odometer, show optional manual km
+            vehicleField.style.display = 'none';
+            personalLabel.style.display = 'block';
+            odometerCard.style.display = 'none';
+            manualKmCard.style.display = 'block';
+            formTitle.textContent = 'Personal Vehicle Trip Log (No Claim)';
+            document.getElementById('distManualKm').value = '';
+        } else {
+            // Normal district vehicle mode
+            vehicleField.style.display = 'block';
+            personalLabel.style.display = 'none';
+            odometerCard.style.display = 'block';
+            manualKmCard.style.display = 'none';
+            formTitle.textContent = 'District Vehicle Trip Log';
+
+            sel.innerHTML = '<option value="">— Select a vehicle —</option>';
+            DISTRICT_VEHICLES.forEach((v, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = v.nickname;
+                sel.appendChild(opt);
+            });
+        }
+
+        document.getElementById('distDriver').textContent = currentUser.name || currentUser.username;
+        document.getElementById('distDate').valueAsDate = new Date();
+        document.getElementById('distOdometer').value = '';
+        document.getElementById('distKmDriven').textContent = '—';
+        document.getElementById('distOdometerHint').textContent = 'Select a vehicle to see the previous reading.';
+        distPreviousOdometer = null;
+
+        // Trip Type selector is meaningful only for district vehicles; for
+        // Personal Vehicle (No Claim) it would be a category error to even
+        // ask. Reset to District Business each time the form opens.
+        const tripTypeCard = document.getElementById('distTripTypeCard');
+        if (tripTypeCard) {
+            tripTypeCard.style.display = isPersonalUnclaimed ? 'none' : 'block';
+            const businessRadio = document.querySelector('input[name="distTripType"][value="District Business"]');
+            if (businessRadio) businessRadio.checked = true;
+            onDistTripTypeChange();
+        }
+    }
+
+    // Personal-use of a district vehicle hides the Churches Visited card
+    // (it's not a ministry trip) and shows a DS-approval reminder. The
+    // selected value is also read at submit time and tagged into Purpose +
+    // Title so the trip is filterable in the SharePoint list.
+    function onDistTripTypeChange() {
+        const picked = document.querySelector('input[name="distTripType"]:checked');
+        const isPersonal = picked && picked.value === 'Personal Use';
+        const churchesCard = document.getElementById('distChurchesCard');
+        const hint = document.getElementById('distPersonalUseHint');
+        if (churchesCard) churchesCard.style.display = isPersonal ? 'none' : 'block';
+        if (hint) hint.style.display = isPersonal ? 'block' : 'none';
+        if (isPersonal) {
+            // Clear any churches that were tentatively picked before the
+            // switch — they wouldn't be relevant on a personal trip.
+            selectedChurches = new Set();
+            renderChurchTags();
+        }
+    }
+
+    async function onDistrictVehicleChange() {
+        const idx = document.getElementById('distVehicle').value;
+        const hint = document.getElementById('distOdometerHint');
+        document.getElementById('distKmDriven').textContent = '—';
+
+        if (idx === '') {
+            distPreviousOdometer = null;
+            hint.textContent = 'Select a vehicle to see the previous reading.';
+            return;
+        }
+
+        const vehicle = DISTRICT_VEHICLES[parseInt(idx)];
+        hint.textContent = 'Looking up last odometer reading…';
+
+        try {
+            const tokenResponse = await msalInstance.acquireTokenSilent({
+                scopes: loginRequest.scopes, account: currentUser });
+            accessToken = tokenResponse.accessToken;
+
+            const siteRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${CONFIG.siteHost}:${CONFIG.sitePath}`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const site = await siteRes.json();
+
+            const listRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${site.id}/lists?$filter=displayName eq '${CONFIG.districtVehicleLogsList}'`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const lists = await listRes.json();
+            const logListId = lists.value[0].id;
+
+            // Fetch ALL log items — Graph API $filter and $orderby on fields/
+            // subproperties are unreliable for SharePoint lists. Do everything
+            // client-side. Use $expand=fields (no $select) to get all columns.
+            let allItems = [];
+            let nextLink = `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${logListId}/items` +
+                `?$expand=fields&$top=200`;
+
+            while (nextLink) {
+                const res = await fetch(nextLink, {
+                    headers: { 'Authorization': `Bearer ${accessToken}`,
+                               'Cache-Control': 'no-cache' },
+                    cache: 'no-store'
+                });
+                const data = await res.json();
+                if (data.value) allItems = allItems.concat(data.value);
+                nextLink = data['@odata.nextLink'] || null;
+            }
+
+            // Client-side filter by vehicle name (trim + case-insensitive)
+            const target = vehicle.nickname.trim().toLowerCase();
+            const vehicleItems = allItems.filter(
+                item => item.fields &&
+                        (item.fields.Title || '').trim().toLowerCase() === target
+            );
+
+            if (vehicleItems.length > 0) {
+                // Client-side sort by TripDate descending (newest first).
+                // Tiebreak by OdometerReading desc — multi-stop days share one
+                // TripDate, so without this the "latest" reading flips arbitrarily
+                // based on Graph's return order.
+                vehicleItems.sort((a, b) => {
+                    const dateA = a.fields.TripDate || '';
+                    const dateB = b.fields.TripDate || '';
+                    const dateCmp = dateB.localeCompare(dateA);
+                    if (dateCmp !== 0) return dateCmp;
+                    return (b.fields.OdometerReading || 0) - (a.fields.OdometerReading || 0);
+                });
+                distPreviousOdometer = vehicleItems[0].fields.OdometerReading;
+                const lastDate = (vehicleItems[0].fields.TripDate || '').split('T')[0] || 'unknown date';
+                hint.textContent = `Previous reading: ${distPreviousOdometer.toLocaleString()} km (as of ${lastDate})`;
+            } else {
+                distPreviousOdometer = null;
+                hint.textContent = 'No previous trips logged for this vehicle. Km driven will not be calculated.';
+            }
+            updateKmDriven();
+        } catch (err) {
+            distPreviousOdometer = null;
+            hint.textContent = 'Could not fetch previous odometer reading.';
+            console.error(err);
+        }
+    }
+
+    function updateKmDriven() {
+        const end = parseFloat(document.getElementById('distOdometer').value);
+        const display = document.getElementById('distKmDriven');
+        if (!isNaN(end) && distPreviousOdometer !== null) {
+            const km = end - distPreviousOdometer;
+            display.textContent = km >= 0 ? `${km.toLocaleString()} km` : 'Error: end reading is less than previous';
+        } else if (!isNaN(end) && distPreviousOdometer === null) {
+            display.textContent = 'No previous reading — cannot calculate';
+        } else {
+            display.textContent = '—';
+        }
+    }
+
+    // ========== CHURCH PICKER ==========
+    async function loadChurches() {
+        document.getElementById('churchList').innerHTML =
+            '<div style="padding:12px; color:var(--text-light); font-size:14px;">Loading churches…</div>';
+        try {
+            const tokenResponse = await msalInstance.acquireTokenSilent({
+                scopes: loginRequest.scopes, account: currentUser });
+            accessToken = tokenResponse.accessToken;
+
+            const siteRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${CONFIG.siteHost}:${CONFIG.sitePath}`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const site = await siteRes.json();
+
+            const listRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${site.id}/lists?$filter=displayName eq '${CONFIG.masterChurchList}'`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const lists = await listRes.json();
+            const churchListId = lists.value[0].id;
+
+            let url = `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${churchListId}/items` +
+                      `?$expand=fields&$top=500`;
+            allChurches = [];
+            while (url) {
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                const data = await res.json();
+                data.value.forEach(item => {
+                    // Try common internal field name variants for a "Church" column
+                    const f = item.fields || {};
+                    const name = f.Church || f.Title || f.ChurchName || f.Church_x0020_Name || null;
+                    if (name) allChurches.push(name);
+                });
+                url = data['@odata.nextLink'] || null;
+            }
+            allChurches.sort();
+            renderChurchList(allChurches);
+        } catch (err) {
+            document.getElementById('churchList').innerHTML =
+                '<div style="padding:12px; color:var(--danger); font-size:14px;">Failed to load churches.</div>';
+            console.error(err);
+        }
+    }
+
+    function renderChurchList(churches) {
+        const list = document.getElementById('churchList');
+        if (churches.length === 0) {
+            list.innerHTML = '<div style="padding:12px; color:var(--text-light); font-size:14px;">No churches found.</div>';
+            return;
+        }
+        list.innerHTML = '';
+        churches.forEach(name => {
+            const item = document.createElement('div');
+            const isSelected = selectedChurches.has(name);
+            item.className = 'church-list-item' + (isSelected ? ' selected' : '');
+            const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            item.innerHTML = `
+                <input type="checkbox" ${isSelected ? 'checked' : ''}
+                       onchange="toggleChurch('${safeName}', this.checked)">
+                <span>${name}</span>`;
+            list.appendChild(item);
+        });
+    }
+
+    function filterChurches() {
+        const q = document.getElementById('churchSearch').value.toLowerCase();
+        const filtered = allChurches.filter(c => c.toLowerCase().includes(q));
+        renderChurchList(filtered);
+    }
+
+    function toggleChurch(name, checked) {
+        if (checked) {
+            selectedChurches.add(name);
+        } else {
+            selectedChurches.delete(name);
+        }
+        renderChurchTags();
+        filterChurches();
+    }
+
+    function renderChurchTags() {
+        const container = document.getElementById('churchTags');
+        container.innerHTML = '';
+        selectedChurches.forEach(name => {
+            const tag = document.createElement('span');
+            tag.className = 'church-tag';
+            const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            tag.innerHTML = `${name} <button class="remove-tag" onclick="toggleChurch('${safeName}', false)">&times;</button>`;
+            container.appendChild(tag);
+        });
+    }
+
+    // ========== SUBMIT DISTRICT LOG ==========
+    async function submitDistrictLog() {
+        const date = document.getElementById('distDate').value;
+        const purposeRaw = document.getElementById('distPurpose').value.trim();
+        const driver = currentUser.name || currentUser.username;
+        const tripTypeEl = document.querySelector('input[name="distTripType"]:checked');
+        const isPersonalUseTrip = !isPersonalUnclaimed && tripTypeEl?.value === 'Personal Use';
+        // Personal-use trips don't visit churches; the card is hidden by
+        // onDistTripTypeChange and `selectedChurches` is cleared, so this
+        // is empty in that case.
+        const churchesStr = [...selectedChurches].join(', ');
+        // Tag Purpose with the same flag pattern external submissions use,
+        // so the SharePoint list view shows the marker without needing a
+        // new column. Title also gets a suffix for at-a-glance scanning.
+        const purpose = isPersonalUseTrip
+            ? `[PERSONAL USE — DS-approved]${purposeRaw ? '\n' + purposeRaw : ''}`
+            : purposeRaw;
+        let vehicleNickname, vehicleDetails, odometer, kmDriven;
+
+        if (!date) { showToast('Please select a date.'); return; }
+
+        if (isPersonalUnclaimed) {
+            vehicleNickname = 'Personal Vehicle (Unclaimed)';
+            vehicleDetails = '';
+            odometer = null;
+            const manualKm = parseFloat(document.getElementById('distManualKm').value);
+            kmDriven = (!isNaN(manualKm) && manualKm > 0) ? manualKm : null;
+        } else {
+            const idx = document.getElementById('distVehicle').value;
+            odometer = parseFloat(document.getElementById('distOdometer').value);
+
+            if (idx === '') { showToast('Please select a vehicle.'); return; }
+            if (isNaN(odometer) || odometer <= 0) { showToast('Please enter the odometer reading.'); return; }
+            if (distPreviousOdometer !== null && odometer < distPreviousOdometer) {
+                showToast('Odometer reading is less than the previous recorded reading.'); return;
+            }
+
+            const vehicle = DISTRICT_VEHICLES[parseInt(idx)];
+            vehicleNickname = vehicle.nickname;
+            vehicleDetails = vehicle.details;
+            kmDriven = distPreviousOdometer !== null ? (odometer - distPreviousOdometer) : null;
+        }
+
+        const btn = document.getElementById('distSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+        try {
+            const tokenResponse = await msalInstance.acquireTokenSilent({
+                scopes: loginRequest.scopes, account: currentUser });
+            accessToken = tokenResponse.accessToken;
+
+            const siteRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${CONFIG.siteHost}:${CONFIG.sitePath}`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const site = await siteRes.json();
+
+            const listRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${site.id}/lists?$filter=displayName eq '${CONFIG.districtVehicleLogsList}'`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const lists = await listRes.json();
+            const logListId = lists.value[0].id;
+
+            const fields = {
+                Title: isPersonalUseTrip ? `${vehicleNickname} (personal use)` : vehicleNickname,
+                VehicleDetails: vehicleDetails,
+                Driver: driver,
+                TripDate: date,
+                ChurchesVisited: churchesStr,
+                Purpose: purpose || '',
+            };
+            if (odometer !== null) {
+                fields.OdometerReading = odometer;
+            }
+            if (kmDriven !== null) {
+                fields.KmDriven = kmDriven;
+            }
+            if (distPreviousOdometer !== null) {
+                fields.PreviousOdometer = distPreviousOdometer;
+            }
+
+            const createRes = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${logListId}/items`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ fields })
+                });
+
+            if (!createRes.ok) {
+                const err = await createRes.json();
+                throw new Error(err.error?.message || 'Failed to submit');
+            }
+
+            document.getElementById('successFlowType').textContent = 'district';
+            document.getElementById('successHeading').textContent = 'Trip Logged';
+            document.getElementById('successMessage').textContent = isPersonalUnclaimed
+                ? 'Your personal vehicle trip has been recorded (no mileage claim).'
+                : isPersonalUseTrip
+                    ? 'The personal-use trip has been recorded and flagged for review.'
+                    : 'The district vehicle trip has been recorded.';
+            document.getElementById('successBackBtn').textContent = 'Log Another Trip';
+            document.getElementById('districtForm').style.display = 'none';
+            document.getElementById('contactLogModal').classList.add('active');
+
+        } catch (err) {
+            showToast('Submission failed: ' + err.message);
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Submit Trip Log';
+        }
+    }
+
+    // ========== HELPERS ==========
+    function resetForm() {
+        document.getElementById('claimCategory').selectedIndex = 0;
+        document.getElementById('purpose').value = '';
+        document.getElementById('claimDate').valueAsDate = new Date();
+        document.getElementById('notes').value = '';
+        document.getElementById('travelDays').innerHTML = '';
+        document.getElementById('expenseItems').innerHTML = '';
+        document.getElementById('payCheque').checked = true;
+        document.getElementById('etransferEmail').value = '';
+        toggleEtransfer();
+        dayCount = 0;
+        expenseCount = 0;
+        addDay();
+        recalc();
+
+        document.getElementById('successScreen').style.display = 'none';
+
+        // External-mode users stay on the public claim form and never see the
+        // authenticated vehicle picker (district vehicles aren't theirs to
+        // log). Authenticated users go back to the vehicle picker as normal.
+        if (isExternalMode) {
+            document.getElementById('externalName').value = '';
+            document.getElementById('externalEmail').value = '';
+            document.getElementById('externalSubmitterCard').style.display = 'block';
+            document.getElementById('mainForm').style.display = 'block';
+        } else {
+            document.getElementById('mainForm').style.display = 'none';
+            document.getElementById('vehicleSelectScreen').style.display = 'flex';
+        }
+    }
+
+    function resetDistrictForm() {
+        isPersonalUnclaimed = false;
+        document.getElementById('distVehicle').value = '';
+        document.getElementById('distOdometer').value = '';
+        document.getElementById('distManualKm').value = '';
+        document.getElementById('distPurpose').value = '';
+        document.getElementById('distDate').valueAsDate = new Date();
+        document.getElementById('distKmDriven').textContent = '—';
+        document.getElementById('distOdometerHint').textContent = 'Select a vehicle to see the previous reading.';
+        document.getElementById('churchSearch').value = '';
+        distPreviousOdometer = null;
+        selectedChurches = new Set();
+        renderChurchTags();
+        if (allChurches.length > 0) renderChurchList(allChurches);
+        // Reset Trip Type back to default so a fresh log doesn't inherit
+        // a previous Personal Use selection.
+        const businessRadio = document.querySelector('input[name="distTripType"][value="District Business"]');
+        if (businessRadio) businessRadio.checked = true;
+        onDistTripTypeChange();
+        document.getElementById('districtForm').style.display = 'none';
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    }
+
+    // ========== CONTACT LOGGING MODAL ==========
+    function openContactLogging() {
+        // Close the modal and open the district dashboard
+        document.getElementById('contactLogModal').classList.remove('active');
+        // Open dashboard in a new tab for contact logging
+        window.open('https://dashboard.canadianmidwest.ca', '_blank');
+        // Show success screen
+        setTimeout(() => {
+            document.getElementById('successScreen').style.display = 'flex';
+        }, 500);
+    }
+
+    function skipContactLogging() {
+        // Close the modal and show success screen
+        document.getElementById('contactLogModal').classList.remove('active');
+        document.getElementById('successScreen').style.display = 'flex';
+    }
+
+    // ========== RECEIPT CAPTURE (View A) ==========
+    let receiptImageBlob = null;       // compressed JPEG ready for OCR + upload
+    let receiptCategories = [];        // active quick-pick tiles
+    let receiptOtherCategories = [];   // search-only (IsActive=false) categories — spec §7.2 "Other…"
+    let selectedReceiptCategory = null; // chosen { label, glCode, icon }
+
+    // Small Graph helpers, used by the receipt flow (mirrors the inline
+    // pattern the claim/district paths use).
+    async function refreshAccessToken() {
+        const t = await msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account: currentUser });
+        accessToken = t.accessToken;
+    }
+    async function graphSite() {
+        const r = await fetch(
+            `https://graph.microsoft.com/v1.0/sites/${CONFIG.siteHost}:${CONFIG.sitePath}`,
+            { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        return r.json();
+    }
+    async function graphListId(siteId, displayName) {
+        const r = await fetch(
+            `https://graph.microsoft.com/v1.0/sites/${siteId}/lists?$filter=displayName eq '${displayName}'`,
+            { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const lists = await r.json();
+        if (!Array.isArray(lists.value) || lists.value.length === 0) {
+            throw new Error(`LIST_NOT_FOUND:${displayName}`);
+        }
+        return lists.value[0].id;
+    }
+
+    function showReceiptStep(stepId) {
+        document.querySelectorAll('#receiptCaptureView .receipt-step')
+            .forEach(s => s.classList.remove('active'));
+        document.getElementById(stepId).classList.add('active');
+    }
+
+    function chooseSubmitReceipt() {
+        document.getElementById('vehicleSelectScreen').style.display = 'none';
+        document.getElementById('receiptCaptureView').style.display = 'block';
+        resetReceiptCapture();
+        // Warm the category list in the background so it's ready at the verify step.
+        loadReceiptCategories();
+    }
+
+    function resetReceiptCapture() {
+        receiptImageBlob = null;
+        selectedReceiptCategory = null;
+        document.getElementById('receiptOtherPicker').style.display = 'none';
+        document.getElementById('receiptSelectedChip').style.display = 'none';
+        document.getElementById('receiptPhoto').value = '';
+        document.getElementById('receiptReviewBanner').style.display = 'none';
+        ['rcVendor', 'rcDate', 'rcSubtotal', 'rcGst', 'rcProvincialTax', 'rcTip', 'rcTotal', 'rcDescription']
+            .forEach(id => { document.getElementById(id).value = ''; });
+        showReceiptStep('receiptStepCapture');
+    }
+
+    function cancelReceiptCapture() {
+        document.getElementById('receiptCaptureView').style.display = 'none';
+        resetReceiptCapture();
+        document.getElementById('vehicleSelectScreen').style.display = 'flex';
+    }
+
+    // Scale longest side to 1200px and re-encode as JPEG q0.8 — keeps OCR
+    // token cost and SharePoint storage down (phone photos are 3-5MB).
+    function compressImage(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const maxSide = 1200;
+                let { width, height } = img;
+                if (Math.max(width, height) > maxSide) {
+                    const scale = maxSide / Math.max(width, height);
+                    width = Math.round(width * scale);
+                    height = Math.round(height * scale);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                canvas.toBlob(
+                    blob => blob ? resolve(blob) : reject(new Error('Compression failed')),
+                    'image/jpeg', 0.8);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+            img.src = url;
+        });
+    }
+
+    async function onReceiptPhotoChosen(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {
+            receiptImageBlob = await compressImage(file);
+            document.getElementById('receiptPreviewImg').src = URL.createObjectURL(receiptImageBlob);
+            showReceiptStep('receiptStepPreview');
+        } catch (err) {
+            showToast('Could not process that photo. Try again.');
+            console.error(err);
+        }
+    }
+
+    function retakeReceipt() {
+        document.getElementById('receiptPhoto').value = '';
+        showReceiptStep('receiptStepCapture');
+    }
+
+    async function continueReceipt() {
+        if (!receiptImageBlob) { retakeReceipt(); return; }
+        showReceiptStep('receiptStepReading');
+        let data = null;
+        try {
+            const fd = new FormData();
+            fd.append('receipt', receiptImageBlob, 'receipt.jpg');
+            const res = await fetch(CONFIG.receiptOcrUrl, { method: 'POST', body: fd });
+            if (!res.ok) throw new Error('OCR_HTTP_' + res.status);
+            data = await res.json();
+        } catch (err) {
+            console.error(err);
+            // OCR unavailable — let the user key it in by hand rather than dead-end.
+            data = { needs_review: true, tax_note: 'Automatic reading was unavailable — please enter the details.' };
+            showToast('Could not read the receipt automatically — please fill it in.');
+        }
+        populateReceiptForm(data || {});
+        showReceiptStep('receiptStepVerify');
+    }
+
+    function populateReceiptForm(data) {
+        document.getElementById('rcVendor').value = data.vendor || '';
+        document.getElementById('rcDate').value = /^\d{4}-\d{2}-\d{2}$/.test(data.date || '')
+            ? data.date : new Date().toISOString().slice(0, 10);
+
+        // Province dropdown — blank first so a null/unknown province is an
+        // explicit pick, not a silent default to SK.
+        const sel = document.getElementById('rcProvince');
+        sel.innerHTML = '<option value="">— Select —</option>' +
+            RECEIPT_PROVINCES.map(p => `<option value="${p}">${p}</option>`).join('');
+        sel.value = RECEIPT_PROVINCES.includes(data.province) ? data.province : '';
+
+        const num = v => (v === null || v === undefined || isNaN(v)) ? '' : Number(v).toFixed(2);
+        document.getElementById('rcSubtotal').value = num(data.subtotal);
+        document.getElementById('rcGst').value = num(data.gst);
+        document.getElementById('rcProvincialTax').value = num(data.provincial_tax);
+        document.getElementById('rcTip').value = num(data.tip);
+        document.getElementById('rcTotal').value = num(data.total);
+        document.getElementById('rcDescription').value = data.description || '';
+
+        const banner = document.getElementById('receiptReviewBanner');
+        if (data.needs_review || !data.province || data.confidence === 'low') {
+            banner.style.display = 'block';
+            banner.textContent = data.tax_note
+                ? `Please double-check: ${data.tax_note}`
+                : 'Please double-check the province and tax amounts before submitting.';
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    async function loadReceiptCategories() {
+        const grid = document.getElementById('receiptCategoryGrid');
+        try {
+            await refreshAccessToken();
+            const site = await graphSite();
+            const listId = await graphListId(site.id, CONFIG.receiptCategoryList);
+            let url = `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${listId}/items?$expand=fields&$top=100`;
+            const rows = [];
+            while (url) {
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                const d = await res.json();
+                (d.value || []).forEach(it => {
+                    const f = it.fields || {};
+                    const label = f.Title || f.Label;
+                    const glCode = f.GLCode || f.GlCode;
+                    if (label && glCode) {
+                        // Keep ALL rows — IsActive only decides tile vs. search-only,
+                        // not visibility. Dropping inactive rows would make the
+                        // "Other…" categories unreachable (spec §7.2).
+                        rows.push({ label, glCode: String(glCode), icon: f.Icon || '🏷️',
+                                    sort: f.SortOrder || 0, active: f.IsActive !== false });
+                    }
+                });
+                url = d['@odata.nextLink'] || null;
+            }
+            rows.sort((a, b) => (a.sort - b.sort) || a.label.localeCompare(b.label));
+            const active = rows.filter(r => r.active);
+            receiptCategories = active.length ? active : DEFAULT_RECEIPT_CATEGORIES.slice();
+            receiptOtherCategories = rows.filter(r => !r.active);
+        } catch (err) {
+            // List not created yet (Phase 1 infra) or unreadable — fall back so
+            // the capture flow stays testable.
+            console.warn('Receipt categories: using fallback —', err.message);
+            receiptCategories = DEFAULT_RECEIPT_CATEGORIES.slice();
+            receiptOtherCategories = [];
+        }
+        renderReceiptCategories();
+    }
+
+    function renderReceiptCategories() {
+        const grid = document.getElementById('receiptCategoryGrid');
+        grid.innerHTML = '';
+        const selGl = selectedReceiptCategory ? selectedReceiptCategory.glCode : null;
+        const selInTiles = selGl && receiptCategories.some(r => r.glCode === selGl);
+        receiptCategories.forEach((c) => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'category-tile' + (c.glCode === selGl ? ' selected' : '');
+            tile.onclick = () => selectReceiptCategory(c);
+            tile.innerHTML = `<span class="tile-icon">${c.icon || '🏷️'}</span><span>${c.label}</span>`;
+            grid.appendChild(tile);
+        });
+        // "Other…" tile opens the searchable picker for the non-tile GL codes.
+        if (receiptOtherCategories.length) {
+            const other = document.createElement('button');
+            other.type = 'button';
+            other.className = 'category-tile' + ((selGl && !selInTiles) ? ' selected' : '');
+            other.onclick = toggleReceiptOtherPicker;
+            other.innerHTML = `<span class="tile-icon">🔎</span><span>Other…</span>`;
+            grid.appendChild(other);
+        }
+        renderReceiptSelectedChip();
+    }
+
+    function selectReceiptCategory(cat) {
+        selectedReceiptCategory = cat;
+        document.getElementById('receiptOtherPicker').style.display = 'none';
+        renderReceiptCategories();
+    }
+
+    function toggleReceiptOtherPicker() {
+        const picker = document.getElementById('receiptOtherPicker');
+        const open = picker.style.display === 'block';
+        picker.style.display = open ? 'none' : 'block';
+        if (!open) {
+            const search = document.getElementById('receiptOtherSearch');
+            search.value = '';
+            renderReceiptOtherResults();
+            search.focus();
+        }
+        renderReceiptCategories();
+    }
+
+    function renderReceiptOtherResults() {
+        const q = document.getElementById('receiptOtherSearch').value.trim().toLowerCase();
+        const box = document.getElementById('receiptOtherResults');
+        box.innerHTML = '';
+        // Empty until the user types — keeps the picker quiet on open.
+        if (!q) {
+            box.innerHTML = '<div style="grid-column:1/-1; color:var(--text-light); font-size:14px; padding:6px 2px;">Start typing to search categories…</div>';
+            return;
+        }
+        // Search the full set (tiles + search-only) so every GL code is reachable.
+        const all = receiptCategories.concat(receiptOtherCategories);
+        const matches = all.filter(c => c.label.toLowerCase().includes(q) || c.glCode.toLowerCase().includes(q));
+        if (!matches.length) {
+            box.innerHTML = '<div style="grid-column:1/-1; color:var(--text-light); font-size:14px; padding:6px 2px;">No matches.</div>';
+            return;
+        }
+        const selGl = selectedReceiptCategory ? selectedReceiptCategory.glCode : null;
+        matches.forEach(c => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'category-tile' + (c.glCode === selGl ? ' selected' : '');
+            tile.onclick = () => selectReceiptCategory(c);
+            tile.innerHTML = `<span class="tile-icon">${c.icon || '🏷️'}</span>` +
+                `<span>${c.label}</span><span class="tile-gl">${c.glCode}</span>`;
+            box.appendChild(tile);
+        });
+    }
+
+    function renderReceiptSelectedChip() {
+        const chip = document.getElementById('receiptSelectedChip');
+        if (!selectedReceiptCategory) { chip.style.display = 'none'; return; }
+        chip.style.display = 'block';
+        chip.innerHTML = `Selected: <strong>${selectedReceiptCategory.icon || '🏷️'} ${selectedReceiptCategory.label}</strong> ` +
+            `<span style="color:var(--text-light);">(${selectedReceiptCategory.glCode})</span>`;
+    }
+
+    // ReceiptRef = REC-YYYY-NNNN, sequential per year, zero-padded to 4.
+    // Graph $orderby on SharePoint list fields is unreliable (see district
+    // log code), so compute the max client-side.
+    async function nextReceiptRef(siteId, listId) {
+        const year = new Date().getFullYear();
+        const prefix = `REC-${year}-`;
+        let max = 0;
+        let url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=200`;
+        while (url) {
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            const d = await res.json();
+            (d.value || []).forEach(it => {
+                const ref = (it.fields || {}).ReceiptRef || '';
+                if (ref.startsWith(prefix)) {
+                    const n = parseInt(ref.slice(prefix.length), 10);
+                    if (!isNaN(n) && n > max) max = n;
+                }
+            });
+            url = d['@odata.nextLink'] || null;
+        }
+        return prefix + String(max + 1).padStart(4, '0');
+    }
+
+    async function submitReceipt() {
+        const vendor = document.getElementById('rcVendor').value.trim();
+        const date = document.getElementById('rcDate').value;
+        const province = document.getElementById('rcProvince').value;
+        const subtotal = parseFloat(document.getElementById('rcSubtotal').value);
+        const gst = parseFloat(document.getElementById('rcGst').value);
+        const provincialTax = parseFloat(document.getElementById('rcProvincialTax').value);
+        const tip = parseFloat(document.getElementById('rcTip').value);
+        const total = parseFloat(document.getElementById('rcTotal').value);
+        const description = document.getElementById('rcDescription').value.trim();
+
+        if (!vendor) { showToast('Please enter the vendor.'); return; }
+        if (!date) { showToast('Please enter the date.'); return; }
+        if (isNaN(total) || total <= 0) { showToast('Please enter the total amount.'); return; }
+        if (!selectedReceiptCategory) { showToast('Please pick a category.'); return; }
+        if (!receiptImageBlob) { showToast('Receipt photo is missing — please retake.'); return; }
+
+        const cat = selectedReceiptCategory;
+        const submittedBy = currentUser.name || currentUser.username;
+        const num = v => isNaN(v) ? 0 : Math.round(v * 100) / 100;
+
+        const btn = document.getElementById('rcSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+        try {
+            await refreshAccessToken();
+            const site = await graphSite();
+            let listId;
+            try {
+                listId = await graphListId(site.id, CONFIG.receiptClaimsList);
+            } catch (e) {
+                if (String(e.message).startsWith('LIST_NOT_FOUND')) {
+                    throw new Error('The Receipt Claims list isn\'t set up yet. Ask the office to finish setup.');
+                }
+                throw e;
+            }
+
+            // Upload the compressed image, then create the list item. Retry once
+            // on a duplicate ReceiptRef (race with another submitter).
+            const safeEmployee = submittedBy.replace(/[^a-zA-Z0-9 _-]/g, '');
+            let receiptUrl = '';
+            let createdRef = null;
+
+            for (let attempt = 0; attempt < 2; attempt++) {
+                const ref = await nextReceiptRef(site.id, listId);
+                const uploadPath = `Travel Receipts/${date}/${safeEmployee}/${ref}.jpg`;
+
+                if (!receiptUrl) {
+                    const uploadRes = await fetch(
+                        `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/root:/${uploadPath}:/content`,
+                        {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'image/jpeg' },
+                            body: receiptImageBlob
+                        });
+                    if (uploadRes.ok) {
+                        const uploaded = await uploadRes.json();
+                        try {
+                            const linkRes = await fetch(
+                                `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/items/${uploaded.id}/createLink`,
+                                {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ type: 'view', scope: 'organization' })
+                                });
+                            receiptUrl = linkRes.ok ? ((await linkRes.json()).link?.webUrl || uploaded.webUrl) : uploaded.webUrl;
+                        } catch { receiptUrl = uploaded.webUrl; }
+                    }
+                }
+
+                const fields = {
+                    Title: `${submittedBy} - ${date}`,
+                    ReceiptRef: ref,
+                    Vendor: vendor,
+                    // noon Central with offset — a bare date is read as UTC
+                    // midnight and rolls back a day in SK/MB.
+                    ReceiptDate: `${date}T12:00:00-06:00`,
+                    Subtotal: num(subtotal),
+                    Province: province,
+                    GSTAmount: num(gst),
+                    ProvincialTax: num(provincialTax),
+                    // TotalAmount is the amount actually paid, incl. tip. Tip is
+                    // a separate, non-taxed line — GST/PST cover the pre-tip bill.
+                    TotalAmount: num(total),
+                    Category: `${cat.glCode} - ${cat.label}`,
+                    CategoryLabel: cat.label,
+                    Description: description,
+                    SubmittedBy: submittedBy,
+                    SubmittedAt: new Date().toISOString(),
+                    ReceiptImageURL: receiptUrl,
+                    Status: 'submitted'
+                };
+                // Only send TipAmount when there's a tip, so non-tip receipts
+                // never touch the column. If the column isn't provisioned yet,
+                // self-heal: drop TipAmount, flag the item, and still save.
+                if (num(tip) > 0) fields.TipAmount = num(tip);
+
+                const postItem = (f) => fetch(
+                    `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${listId}/items`,
+                    {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fields: f })
+                    });
+
+                let createRes = await postItem(fields);
+
+                if (!createRes.ok && fields.TipAmount !== undefined) {
+                    const errText = await createRes.clone().text().catch(() => '');
+                    // SharePoint list has no TipAmount column yet — don't fail the
+                    // whole submission over it; save without the tip and flag it.
+                    if (/TipAmount/i.test(errText)) {
+                        delete fields.TipAmount;
+                        const tipNote = `Tip $${num(tip).toFixed(2)} not saved — add a TipAmount column to the Receipt Claims list.`;
+                        fields.Flag = fields.Flag ? `${fields.Flag}; ${tipNote}` : tipNote;
+                        createRes = await postItem(fields);
+                    }
+                }
+
+                if (createRes.ok) { createdRef = ref; break; }
+                if (attempt === 1) {
+                    const err = await createRes.json().catch(() => ({}));
+                    throw new Error(err.error?.message || 'Failed to submit receipt');
+                }
+                // else: loop and recompute the ref
+            }
+
+            document.getElementById('successFlowType').textContent = 'receipt';
+            document.getElementById('successHeading').textContent = 'Receipt Submitted';
+            document.getElementById('successMessage').textContent =
+                `Saved as ${createdRef}. It'll appear in the reconciliation queue for review.`;
+            document.getElementById('successBackBtn').textContent = 'Submit Another Receipt';
+            document.getElementById('receiptCaptureView').style.display = 'none';
+            document.getElementById('successScreen').style.display = 'flex';
+        } catch (err) {
+            showToast('Submission failed: ' + err.message);
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Submit Receipt';
+        }
+    }
+
+    // ========== RECONCILIATION DASHBOARD (View B — Emmanuel) ==========
+    let reconAll = [];                               // [{id, f:fields}]
+    let reconStatus = 'all';
+    let reconSort = { key: 'ReceiptDate', dir: 1 };
+    const RECON_COLS = [
+        { key:'Status', label:'Status' }, { key:'ReceiptRef', label:'Ref' },
+        { key:'ReceiptDate', label:'Date' }, { key:'Vendor', label:'Vendor' },
+        { key:'Province', label:'Prov' }, { key:'SubmittedBy', label:'Submitter' },
+        { key:'CategoryLabel', label:'Category' }, { key:'Subtotal', label:'Subtotal', num:true },
+        { key:'GSTAmount', label:'GST', num:true }, { key:'ProvincialTax', label:'Prov Tax', num:true },
+        { key:'TipAmount', label:'Tip', num:true }, { key:'TotalAmount', label:'Total', num:true },
+        { key:'Flag', label:'Flag' },
+    ];
+    // Provincial rate by province for inline recompute; GST is always 5% (spec §5.4).
+    const PROVINCE_PROV_RATE = { SK:0.06, MB:0.07, BC:0.07, AB:0.00, ON:0.08, NB:0.10, NS:0.10, NL:0.10, PE:0.10, QC:0.09975 };
+
+    function reconEsc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    function hideAllReceiptViews(){
+        ['vehicleSelectScreen','mainForm','districtForm','receiptCaptureView','successScreen','reconciliationDashboard','consoleDenied']
+            .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+    }
+
+    async function openReconciliation(){
+        hideAllReceiptViews();
+        document.getElementById('reconciliationDashboard').style.display = 'block';
+        reconSelected.clear();
+        try { await loadReceiptCategories(); } catch (e) { /* category dropdowns degrade gracefully */ }
+        populateReconCategoryControls();
+        await loadReconciliation();
+    }
+
+    async function loadReconciliation(){
+        const body = document.getElementById('reconBody');
+        body.innerHTML = '<tr><td colspan="14" class="recon-empty">Loading…</td></tr>';
+        try {
+            await refreshAccessToken();
+            const site = await graphSite();
+            const listId = await graphListId(site.id, CONFIG.receiptClaimsList);
+            let url = `https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${listId}/items?$expand=fields&$top=200`;
+            const rows = [];
+            while (url) {
+                const res = await fetch(url, { headers:{ 'Authorization':`Bearer ${accessToken}`, 'Cache-Control':'no-cache' }, cache:'no-store' });
+                const d = await res.json();
+                (d.value||[]).forEach(it => rows.push({ id: it.id, f: it.fields||{} }));
+                url = d['@odata.nextLink'] || null;
+            }
+            reconAll = rows;
+            populateReconFilters();
+            renderReconciliation();
+        } catch (err) {
+            console.error(err);
+            body.innerHTML = `<tr><td colspan="14" class="recon-empty">Could not load receipts: ${reconEsc(err.message)}</td></tr>`;
+        }
+    }
+
+    function populateReconFilters(){
+        const subSel=document.getElementById('reconSubmitter'), catSel=document.getElementById('reconCategory');
+        const prevSub=subSel.value, prevCat=catSel.value;
+        const subs=[...new Set(reconAll.map(r=>r.f.SubmittedBy).filter(Boolean))].sort();
+        const cats=[...new Set(reconAll.map(r=>r.f.CategoryLabel).filter(Boolean))].sort();
+        subSel.innerHTML='<option value="">All</option>'+subs.map(s=>`<option>${reconEsc(s)}</option>`).join('');
+        catSel.innerHTML='<option value="">All</option>'+cats.map(c=>`<option>${reconEsc(c)}</option>`).join('');
+        subSel.value=prevSub; catSel.value=prevCat;
+    }
+
+    function setReconTab(s){
+        reconStatus=s;
+        document.querySelectorAll('#reconTabs .recon-tab').forEach(t=>t.classList.toggle('active', t.dataset.status===s));
+        renderReconciliation();
+    }
+    function setReconSort(key){
+        if(reconSort.key===key) reconSort.dir*=-1; else { reconSort.key=key; reconSort.dir=1; }
+        renderReconciliation();
+    }
+    function clearReconFilters(){
+        ['reconFrom','reconTo','reconSubmitter','reconCategory'].forEach(id=>document.getElementById(id).value='');
+        renderReconciliation();
+    }
+
+    function filteredRecon(){
+        const from=document.getElementById('reconFrom').value, to=document.getElementById('reconTo').value;
+        const sub=document.getElementById('reconSubmitter').value, cat=document.getElementById('reconCategory').value;
+        return reconAll.filter(r=>{
+            const f=r.f, st=(f.Status||'submitted').toLowerCase();
+            if(reconStatus==='flagged'){ if(!f.Flag) return false; }
+            else if(reconStatus!=='all'){ if(st!==reconStatus) return false; }
+            if(sub && f.SubmittedBy!==sub) return false;
+            if(cat && f.CategoryLabel!==cat) return false;
+            const d=(f.ReceiptDate||'').slice(0,10);
+            if(from && d && d<from) return false;
+            if(to && d && d>to) return false;
+            return true;
+        });
+    }
+
+    function renderReconciliation(){
+        const head=document.getElementById('reconHead'), body=document.getElementById('reconBody');
+        const COLSPAN = RECON_COLS.length + 1;
+        head.innerHTML='<tr><th class="chk"><input type="checkbox" id="reconSelAll" onclick="toggleSelectAll(this)"></th>'+RECON_COLS.map(c=>{
+            const arrow = reconSort.key===c.key ? `<span class="arrow">${reconSort.dir>0?'▲':'▼'}</span>` : '';
+            return `<th class="${c.num?'num':''}" onclick="setReconSort('${c.key}')">${c.label} ${arrow}</th>`;
+        }).join('')+'</tr>';
+
+        const rows=filteredRecon();
+        const k=reconSort.key, dir=reconSort.dir, numeric=!!RECON_COLS.find(c=>c.key===k)?.num;
+        rows.sort((a,b)=>{
+            let va=a.f[k], vb=b.f[k];
+            if(numeric){ return ((parseFloat(va)||0)-(parseFloat(vb)||0))*dir; }
+            va=(va||'').toString().toLowerCase(); vb=(vb||'').toString().toLowerCase();
+            return va<vb?-dir:(va>vb?dir:0);
+        });
+
+        document.getElementById('reconCount').textContent = `${rows.length} receipt${rows.length===1?'':'s'}`;
+        const totGst = rows.reduce((a,r)=>a+(parseFloat(r.f.GSTAmount)||0),0);
+        const gEl=document.getElementById('rebateGst'), aEl=document.getElementById('rebateAmt');
+        if(gEl) gEl.textContent='$'+totGst.toFixed(2);
+        if(aEl) aEl.textContent='$'+(totGst*0.5).toFixed(2);
+        if(!rows.length){ body.innerHTML=`<tr><td colspan="${COLSPAN}" class="recon-empty">No receipts match.</td></tr>`; updateBulkBar(); return; }
+        const money=v=>{ const n=parseFloat(v); return isNaN(n)?'':'$'+n.toFixed(2); };
+        body.innerHTML=rows.map(r=>{
+            const f=r.f, st=(f.Status||'submitted').toLowerCase();
+            const provOpts=['',...RECEIPT_PROVINCES].map(p=>`<option value="${p}"${p===(f.Province||'')?' selected':''}>${p||'—'}</option>`).join('');
+            const checked=reconSelected.has(r.id)?' checked':'';
+            return `<tr class="main-row" id="row-${r.id}" onclick="toggleReconRow('${r.id}', event)">
+                <td class="chk" onclick="event.stopPropagation()"><input type="checkbox"${checked} onchange="toggleReconSelect('${r.id}')"></td>
+                <td><span class="status-badge status-${st}">${reconEsc(f.Status||'submitted')}</span></td>
+                <td>${reconEsc(f.ReceiptRef)}</td>
+                <td>${reconEsc((f.ReceiptDate||'').slice(0,10))}</td>
+                <td>${reconEsc(f.Vendor)}</td>
+                <td onclick="event.stopPropagation()"><select class="recon-prov-select" onchange="changeReconProvince('${r.id}', this.value)">${provOpts}</select></td>
+                <td>${reconEsc(f.SubmittedBy)}</td>
+                <td>${reconEsc(f.CategoryLabel)}</td>
+                <td class="num">${money(f.Subtotal)}</td>
+                <td class="num">${money(f.GSTAmount)}</td>
+                <td class="num">${money(f.ProvincialTax)}</td>
+                <td class="num">${money(f.TipAmount)}</td>
+                <td class="num">${money(f.TotalAmount)}</td>
+                <td class="flag-cell">${reconEsc(f.Flag)}</td>
+            </tr>`;
+        }).join('');
+        updateBulkBar();
+    }
+
+    // Inline province correction recomputes the GST/provincial split from the
+    // tax-inclusive (total - tip) base, then persists it (spec §8.1).
+    async function changeReconProvince(id, province){
+        const rec=reconAll.find(r=>r.id===id); if(!rec) return;
+        const f=rec.f;
+        const total=parseFloat(f.TotalAmount)||0, tip=parseFloat(f.TipAmount)||0;
+        const taxable=Math.max(0, total-tip);
+        let subtotal, gst, prov;
+        if(!province){ subtotal=taxable; gst=0; prov=0; }
+        else {
+            const combined=0.05+(PROVINCE_PROV_RATE[province]||0);
+            subtotal=Math.round((taxable/(1+combined))*100)/100;
+            gst=Math.round(subtotal*0.05*100)/100;
+            prov=Math.round((taxable-subtotal-gst)*100)/100;
+        }
+        f.Province=province; f.Subtotal=subtotal; f.GSTAmount=gst; f.ProvincialTax=prov;
+        renderReconciliation();
+        try {
+            await refreshAccessToken();
+            const site=await graphSite();
+            const listId=await graphListId(site.id, CONFIG.receiptClaimsList);
+            const res=await fetch(`https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${listId}/items/${id}/fields`,{
+                method:'PATCH',
+                headers:{ 'Authorization':`Bearer ${accessToken}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ Province:province, Subtotal:subtotal, GSTAmount:gst, ProvincialTax:prov })
+            });
+            if(!res.ok) throw new Error('PATCH '+res.status);
+            showToast(`Updated ${f.ReceiptRef||'receipt'} → ${province||'(blank)'}`);
+        } catch(err){
+            console.error(err);
+            showToast('Could not save the province change — reloading.');
+            loadReconciliation();
+        }
+    }
+
+    // ---- Selection + bulk actions ----
+    const reconSelected = new Set();
+
+    function allReconCats(){ return (receiptCategories||[]).concat(receiptOtherCategories||[]); }
+    function reconCatOptionsHTML(selGl){
+        return '<option value="">— choose —</option>' + allReconCats().map(c=>
+            `<option value="${reconEsc(c.glCode)}"${c.glCode===selGl?' selected':''}>${reconEsc(c.label)} (${reconEsc(c.glCode)})</option>`).join('');
+    }
+    function populateReconCategoryControls(){
+        const bulk=document.getElementById('reconBulkCat');
+        if(bulk) bulk.innerHTML = reconCatOptionsHTML('');
+    }
+
+    function toggleReconSelect(id){
+        if(reconSelected.has(id)) reconSelected.delete(id); else reconSelected.add(id);
+        updateBulkBar();
+    }
+    function toggleSelectAll(cb){
+        const ids=filteredRecon().map(r=>r.id);
+        if(cb.checked) ids.forEach(i=>reconSelected.add(i)); else ids.forEach(i=>reconSelected.delete(i));
+        renderReconciliation();
+    }
+    function clearReconSelection(){ reconSelected.clear(); renderReconciliation(); }
+    function updateBulkBar(){
+        const bar=document.getElementById('reconBulkBar'); if(!bar) return;
+        const n=reconSelected.size;
+        bar.style.display = n ? 'flex' : 'none';
+        const c=document.getElementById('reconSelCount'); if(c) c.textContent=`${n} selected`;
+        const all=document.getElementById('reconSelAll');
+        if(all){ const ids=filteredRecon().map(r=>r.id); all.checked = ids.length>0 && ids.every(i=>reconSelected.has(i)); }
+    }
+
+    // PATCH a single Receipt Claims item's fields.
+    async function reconPatch(id, fields){
+        await refreshAccessToken();
+        const site=await graphSite();
+        const listId=await graphListId(site.id, CONFIG.receiptClaimsList);
+        const res=await fetch(`https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${listId}/items/${id}/fields`,{
+            method:'PATCH', headers:{ 'Authorization':`Bearer ${accessToken}`, 'Content-Type':'application/json' },
+            body: JSON.stringify(fields) });
+        if(!res.ok) throw new Error('PATCH '+res.status);
+    }
+
+    async function bulkApplyCategory(){
+        const gl=document.getElementById('reconBulkCat').value;
+        if(!gl){ showToast('Pick a category first.'); return; }
+        const cat=allReconCats().find(c=>c.glCode===gl); if(!cat) return;
+        const ids=[...reconSelected]; if(!ids.length) return;
+        showToast(`Updating ${ids.length}…`);
+        try{
+            for(const id of ids){
+                await reconPatch(id, { Category:`${cat.glCode} - ${cat.label}`, CategoryLabel:cat.label });
+                const rec=reconAll.find(r=>r.id===id); if(rec){ rec.f.Category=`${cat.glCode} - ${cat.label}`; rec.f.CategoryLabel=cat.label; }
+            }
+            showToast(`Category set on ${ids.length} receipt${ids.length===1?'':'s'}.`);
+            renderReconciliation();
+        }catch(e){ console.error(e); showToast('Bulk update failed — reloading.'); loadReconciliation(); }
+    }
+
+    async function bulkMarkReconciled(){
+        const ids=[...reconSelected]; if(!ids.length) return;
+        const who=(currentUser&&(currentUser.name||currentUser.username))||'';
+        const now=new Date().toISOString();
+        showToast(`Marking ${ids.length} reconciled…`);
+        try{
+            for(const id of ids){
+                await reconPatch(id, { Status:'reconciled', ReconciledBy:who, ReconciledAt:now });
+                const rec=reconAll.find(r=>r.id===id); if(rec){ rec.f.Status='reconciled'; rec.f.ReconciledBy=who; rec.f.ReconciledAt=now; }
+            }
+            reconSelected.clear();
+            showToast(`${ids.length} marked reconciled.`);
+            renderReconciliation();
+        }catch(e){ console.error(e); showToast('Bulk reconcile failed — reloading.'); loadReconciliation(); }
+    }
+
+    // ---- Row expand + inline edit ----
+    function toggleReconRow(id){
+        const existing=document.getElementById('detail-'+id);
+        if(existing){ existing.remove(); return; }
+        document.querySelectorAll('tr.recon-detail').forEach(e=>e.remove());  // one open at a time
+        const rec=reconAll.find(r=>r.id===id); if(!rec) return;
+        const mainRow=document.getElementById('row-'+id); if(!mainRow) return;
+        const tr=document.createElement('tr'); tr.className='recon-detail'; tr.id='detail-'+id;
+        const td=document.createElement('td'); td.colSpan=RECON_COLS.length+1;
+        td.innerHTML=reconDetailHTML(rec);
+        tr.appendChild(td); mainRow.after(tr);
+        loadReceiptImage(rec);
+    }
+
+    function reconDetailHTML(rec){
+        const f=rec.f, id=rec.id;
+        const provOpts=['',...RECEIPT_PROVINCES].map(p=>`<option value="${p}"${p===(f.Province||'')?' selected':''}>${p||'— unknown —'}</option>`).join('');
+        const v=k=>reconEsc(f[k]==null?'':f[k]);
+        const n=k=>{ const x=parseFloat(f[k]); return isNaN(x)?'':x; };
+        const glSel=(()=>{ const m=(f.Category||'').match(/^\s*([0-9A-Za-z]+)/); return m?m[1]:''; })();
+        return `<div class="recon-detail-grid">
+            <div class="recon-detail-img" id="img-${id}"><div class="recon-noimg">Loading image…</div></div>
+            <div class="recon-form">
+                <div class="fld full"><label>Vendor</label><input id="ed-Vendor-${id}" value="${v('Vendor')}"></div>
+                <div class="fld"><label>Date</label><input type="date" id="ed-ReceiptDate-${id}" value="${(f.ReceiptDate||'').slice(0,10)}"></div>
+                <div class="fld"><label>Province</label><select id="ed-Province-${id}" onchange="reconRecalcForm('${id}')">${provOpts}</select></div>
+                <div class="fld"><label>Subtotal ($)</label><input type="number" step="0.01" id="ed-Subtotal-${id}" value="${n('Subtotal')}"></div>
+                <div class="fld"><label>GST ($)</label><input type="number" step="0.01" id="ed-GSTAmount-${id}" value="${n('GSTAmount')}"></div>
+                <div class="fld"><label>Provincial tax ($)</label><input type="number" step="0.01" id="ed-ProvincialTax-${id}" value="${n('ProvincialTax')}"></div>
+                <div class="fld"><label>Tip ($)</label><input type="number" step="0.01" id="ed-TipAmount-${id}" value="${n('TipAmount')}" onchange="reconRecalcForm('${id}')"></div>
+                <div class="fld"><label>Total paid ($)</label><input type="number" step="0.01" id="ed-TotalAmount-${id}" value="${n('TotalAmount')}" onchange="reconRecalcForm('${id}')"></div>
+                <div class="fld"><label>Category</label><select id="ed-Category-${id}">${reconCatOptionsHTML(glSel)}</select></div>
+                <div class="fld"><label>Flag</label><input id="ed-Flag-${id}" value="${v('Flag')}" placeholder="(none)"></div>
+                <div class="fld full"><label>Note</label><textarea id="ed-Description-${id}">${v('Description')}</textarea></div>
+                <div class="recon-form-actions">
+                    <button class="btn btn-success btn-sm" onclick="saveReconRow('${id}')">Save changes</button>
+                    <button class="btn btn-outline btn-sm" onclick="markReconciledRow('${id}')">Mark reconciled</button>
+                    <button class="btn btn-outline btn-sm" onclick="toggleReconRow('${id}')">Close</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // Recompute the GST/provincial split in the open editor from total - tip.
+    function reconRecalcForm(id){
+        const prov=document.getElementById('ed-Province-'+id).value;
+        const total=parseFloat(document.getElementById('ed-TotalAmount-'+id).value)||0;
+        const tip=parseFloat(document.getElementById('ed-TipAmount-'+id).value)||0;
+        const taxable=Math.max(0,total-tip);
+        let subtotal,gst,prov2;
+        if(!prov){ subtotal=taxable; gst=0; prov2=0; }
+        else { const combined=0.05+(PROVINCE_PROV_RATE[prov]||0); subtotal=Math.round((taxable/(1+combined))*100)/100; gst=Math.round(subtotal*0.05*100)/100; prov2=Math.round((taxable-subtotal-gst)*100)/100; }
+        document.getElementById('ed-Subtotal-'+id).value=subtotal;
+        document.getElementById('ed-GSTAmount-'+id).value=gst;
+        document.getElementById('ed-ProvincialTax-'+id).value=prov2;
+    }
+
+    // Fetch the receipt image via the Graph shares API (the stored ReceiptImageURL
+    // is a sharing link, not a direct image src).
+    async function loadReceiptImage(rec){
+        const box=document.getElementById('img-'+rec.id); if(!box) return;
+        const url=rec.f.ReceiptImageURL;
+        if(!url){ box.innerHTML='<div class="recon-noimg">No image link on this receipt.</div>'; return; }
+        try{
+            await refreshAccessToken();
+            const shareId='u!'+btoa(url).replace(/=+$/,'').replace(/\//g,'_').replace(/\+/g,'-');
+            const res=await fetch(`https://graph.microsoft.com/v1.0/shares/${shareId}/driveItem/content`,{ headers:{ 'Authorization':`Bearer ${accessToken}` } });
+            if(!res.ok) throw new Error('img '+res.status);
+            const u=URL.createObjectURL(await res.blob());
+            box.innerHTML=`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" class="recon-img" alt="receipt image"></a>`;
+        }catch(e){ console.error(e); box.innerHTML=`<div class="recon-noimg">Couldn’t load image. <a href="${reconEsc(url)}" target="_blank" rel="noopener">Open in SharePoint</a></div>`; }
+    }
+
+    async function saveReconRow(id){
+        const rec=reconAll.find(r=>r.id===id); if(!rec) return;
+        const num=el=>{ const x=parseFloat(document.getElementById(el).value); return isNaN(x)?0:Math.round(x*100)/100; };
+        const gl=document.getElementById('ed-Category-'+id).value;
+        const cat=allReconCats().find(c=>c.glCode===gl);
+        const dateVal=document.getElementById('ed-ReceiptDate-'+id).value;
+        const fields={
+            Vendor:document.getElementById('ed-Vendor-'+id).value.trim(),
+            ReceiptDate: dateVal ? dateVal+'T12:00:00-06:00' : rec.f.ReceiptDate,   // noon Central, avoid UTC day-rollback
+            Province:document.getElementById('ed-Province-'+id).value,
+            Subtotal:num('ed-Subtotal-'+id), GSTAmount:num('ed-GSTAmount-'+id),
+            ProvincialTax:num('ed-ProvincialTax-'+id), TipAmount:num('ed-TipAmount-'+id),
+            TotalAmount:num('ed-TotalAmount-'+id),
+            Description:document.getElementById('ed-Description-'+id).value.trim(),
+            Flag:document.getElementById('ed-Flag-'+id).value.trim(),
+        };
+        if(cat){ fields.Category=`${cat.glCode} - ${cat.label}`; fields.CategoryLabel=cat.label; }
+        try{
+            await reconPatch(id, fields);
+            Object.assign(rec.f, fields);
+            showToast(`Saved ${rec.f.ReceiptRef||'receipt'}.`);
+            renderReconciliation();
+        }catch(e){ console.error(e); showToast('Save failed — reloading.'); loadReconciliation(); }
+    }
+
+    async function markReconciledRow(id){
+        const rec=reconAll.find(r=>r.id===id); if(!rec) return;
+        const who=(currentUser&&(currentUser.name||currentUser.username))||''; const now=new Date().toISOString();
+        try{
+            await reconPatch(id, { Status:'reconciled', ReconciledBy:who, ReconciledAt:now });
+            rec.f.Status='reconciled'; rec.f.ReconciledBy=who; rec.f.ReconciledAt=now;
+            showToast(`${rec.f.ReceiptRef||'Receipt'} reconciled.`);
+            renderReconciliation();
+        }catch(e){ console.error(e); showToast('Could not reconcile — reloading.'); loadReconciliation(); }
+    }
+
+    // ---- Increment 3: batch creation, .IMP export, PSB rebate ----
+    function downloadBlob(text, filename, type){
+        const u=URL.createObjectURL(new Blob([text],{type}));
+        const a=document.createElement('a'); a.href=u; a.download=filename;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
+    }
+
+    // The selection if any rows are checked, otherwise the current filtered view.
+    function reconWorkingSet(){
+        return reconSelected.size ? reconAll.filter(r=>reconSelected.has(r.id)) : filteredRecon();
+    }
+    // Batch-eligible = reconciled and not already in a batch.
+    function batchEligible(){
+        return reconWorkingSet().filter(r => (r.f.Status||'').toLowerCase()==='reconciled' && !r.f.BatchRef);
+    }
+
+    function exportRC4034(){
+        const recs=filteredRecon();
+        if(!recs.length){ showToast('Nothing to export in the current view.'); return; }
+        const rows=[['Date','Vendor','Receipt Ref','GST']].concat(recs.map(r=>[
+            (r.f.ReceiptDate||'').slice(0,10), (r.f.Vendor||'').replace(/"/g,"'"),
+            r.f.ReceiptRef||'', (parseFloat(r.f.GSTAmount)||0).toFixed(2) ]));
+        const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\r\n');
+        downloadBlob(csv, `RC4034-GST-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv');
+        showToast('RC4034 GST CSV downloaded.');
+    }
+
+    // ---- Batch creation (spec §8.4) ----
+    function openBatchModal(){
+        const recs=batchEligible();
+        const el=document.getElementById('batchSummary'), btn=document.getElementById('batchCreateBtn');
+        if(!recs.length){
+            el.innerHTML='No eligible receipts. A batch includes <b>reconciled</b> receipts that aren’t already in a batch — select some (or mark receipts reconciled) first.';
+            btn.disabled=true;
+        } else {
+            const t=recs.reduce((a,r)=>{a.gst+=+r.f.GSTAmount||0;a.tot+=+r.f.TotalAmount||0;a.flag+=r.f.Flag?1:0;return a;},{gst:0,tot:0,flag:0});
+            el.innerHTML=`<b>${recs.length}</b> receipt(s) · Total <b>$${t.tot.toFixed(2)}</b> · GST $${t.gst.toFixed(2)} · ${t.flag} flagged`;
+            btn.disabled=false;
+        }
+        document.getElementById('batchModal').classList.add('active');
+    }
+    function closeBatchModal(){ document.getElementById('batchModal').classList.remove('active'); }
+
+    async function nextBatchRef(siteId, listId){
+        const year=new Date().getFullYear(), prefix=`BATCH-${year}-`;
+        let max=0, url=`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=200`;
+        while(url){
+            const res=await fetch(url,{headers:{'Authorization':`Bearer ${accessToken}`,'Cache-Control':'no-cache'},cache:'no-store'});
+            const d=await res.json();
+            (d.value||[]).forEach(it=>{ const ref=(it.fields||{}).BatchRef||''; if(ref.startsWith(prefix)){ const num=parseInt(ref.slice(prefix.length),10); if(!isNaN(num)&&num>max) max=num; } });
+            url=d['@odata.nextLink']||null;
+        }
+        return prefix+String(max+1).padStart(2,'0');
+    }
+
+    async function createBatch(){
+        const recs=batchEligible(); if(!recs.length) return;
+        const btn=document.getElementById('batchCreateBtn'); btn.disabled=true; btn.textContent='Creating…';
+        try{
+            await refreshAccessToken();
+            const site=await graphSite();
+            const batchListId=await graphListId(site.id, CONFIG.receiptBatchesList);
+            const ref=await nextBatchRef(site.id, batchListId);
+            const dates=recs.map(r=>(r.f.ReceiptDate||'').slice(0,10)).filter(Boolean).sort();
+            const r2=x=>Math.round(x*100)/100;
+            const t=recs.reduce((a,r)=>{a.sub+=+r.f.Subtotal||0;a.gst+=+r.f.GSTAmount||0;a.prov+=+r.f.ProvincialTax||0;a.tot+=+r.f.TotalAmount||0;a.flag+=r.f.Flag?1:0;return a;},{sub:0,gst:0,prov:0,tot:0,flag:0});
+            const who=(currentUser&&(currentUser.name||currentUser.username))||'', now=new Date().toISOString();
+            const fields={ Title:ref, BatchRef:ref,
+                PeriodStart: dates[0]?dates[0]+'T12:00:00-06:00':null,
+                PeriodEnd: dates.length?dates[dates.length-1]+'T12:00:00-06:00':null,
+                TotalSubtotal:r2(t.sub), TotalGST:r2(t.gst), TotalProvincialTax:r2(t.prov), TotalAmount:r2(t.tot),
+                ReceiptCount:recs.length, FlagCount:t.flag,
+                AccountantNotes:document.getElementById('batchNotes').value.trim(),
+                PreparedBy:who, PreparedAt:now, Status:'pending_approval' };
+            const cr=await fetch(`https://graph.microsoft.com/v1.0/sites/${site.id}/lists/${batchListId}/items`,{
+                method:'POST', headers:{'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json'},
+                body:JSON.stringify({fields}) });
+            if(!cr.ok) throw new Error('batch create '+cr.status);
+            for(const r of recs){ await reconPatch(r.id, { BatchRef:ref }); const rec=reconAll.find(x=>x.id===r.id); if(rec) rec.f.BatchRef=ref; }
+            document.getElementById('batchNotes').value='';
+            showToast(`Created ${ref} with ${recs.length} receipt(s).`);
+            closeBatchModal(); reconSelected.clear(); renderReconciliation();
+        }catch(e){ console.error(e); showToast('Batch creation failed — '+e.message); btn.disabled=false; btn.textContent='Create batch'; }
+    }
+
+    // ---- Sage 50 General Journal .IMP export (spec §5.4 posting model) ----
+    // DRAFT format — the two-debit posting (accounts + amounts) is confirmed
+    // (Emmanuel's J674); the exact Sage 50 CA GeneralLedger block layout must be
+    // verified by importing into a TEST company. Keep the template here isolated
+    // so it's a one-spot fix once the test import confirms the syntax.
+    function cardAccountFor(name){
+        const n=(name||'').toLowerCase();
+        if(/keith|(^|\s)bob(\s|$)/.test(n)) return '2071';
+        if(/smith|chris/.test(n)) return '2072';
+        if(/enns|richard/.test(n)) return '2073';
+        if(/walle|bernie/.test(n)) return '2076';
+        return '';
+    }
+    function impDate(iso){ const p=(iso||'').slice(0,10).split('-'); return p.length===3?`${p[1]}-${p[2]}-${p[0]}`:''; } // MM-DD-YYYY
+
+    function buildImp(recs){
+        const warnings=[];
+        let out='<Version>\r\n"32101","1"\r\n</Version>\r\n';
+        recs.forEach(r=>{
+            const f=r.f;
+            const gst=Math.round((parseFloat(f.GSTAmount)||0)*100)/100;
+            const recover=Math.round(gst*0.5*100)/100;
+            const sub=parseFloat(f.Subtotal)||0, prov=parseFloat(f.ProvincialTax)||0, tip=parseFloat(f.TipAmount)||0;
+            const total=Math.round((parseFloat(f.TotalAmount)||0)*100)/100;
+            const expense=Math.round((sub+prov+tip+(gst-recover))*100)/100;
+            const expAcct=((f.Category||'').match(/^\s*([0-9A-Za-z]+)/)||[])[1]||'';
+            const cardAcct=cardAccountFor(f.SubmittedBy);
+            if(!expAcct) warnings.push(`${f.ReceiptRef}: missing expense account (category)`);
+            if(!cardAcct) warnings.push(`${f.ReceiptRef}: no card account for “${f.SubmittedBy||'?'}”`);
+            const cmt=`${f.Vendor||''} (${f.Province||'?'})`.replace(/"/g,'');
+            out+='<GeneralLedger>\r\n';
+            out+=`"${f.ReceiptRef||'REC'}","${impDate(f.ReceiptDate)}","${cmt}"\r\n`;
+            if(recover>0) out+=`"2082","${recover.toFixed(2)}","0.00","GST 50% rebate"\r\n`;
+            out+=`"${expAcct}","${expense.toFixed(2)}","0.00","${cmt}"\r\n`;
+            out+=`"${cardAcct}","0.00","${total.toFixed(2)}","Card: ${(f.SubmittedBy||'').replace(/"/g,'')}"\r\n`;
+            out+='</GeneralLedger>\r\n';
+        });
+        return { text: out, warnings };
+    }
+
+    function downloadImp(){
+        const recs=reconWorkingSet();
+        if(!recs.length){ showToast('Select receipts (or filter the view) to export.'); return; }
+        const { text, warnings }=buildImp(recs);
+        if(warnings.length && !confirm('Some receipts are missing an account:\n\n'+warnings.join('\n')+'\n\nDownload anyway?')) return;
+        downloadBlob(text, `receipts-${new Date().toISOString().slice(0,10)}.IMP`, 'text/plain');
+        showToast(`DRAFT .IMP for ${recs.length} receipt(s) — import into a TEST company to verify the format.`);
+    }
+
+    // Init
+    applyConsoleChrome();
+    checkExistingSession();
+</script>
+
+</body>
+</html>
